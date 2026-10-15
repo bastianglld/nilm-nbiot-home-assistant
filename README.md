@@ -21,8 +21,8 @@ Schéma détaillé à reprendre depuis le diaporama.
 ## Équipe
 
 - Bastian Guilloud : NILM (IA) et flexibilité
-- Mathieu Hegoburu : rôle à compléter
-- Merveille-Joresse Ngoulou-Wamena : rôle à compléter
+- Mathieu Hegoburu : serveur, Home Assistant et sécurité (broker MQTT, TLS)
+- Merveille-Joresse Ngoulou-Wamena : module NB-IoT ST87M01 et capteur
 
 ## Structure du dépôt
 
@@ -50,4 +50,6 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-À définir par l'équipe.
+- Code : [MIT](LICENSE) © 2026 Bastian Guilloud, Mathieu Hegoburu, Merveille-Joresse Ngoulou-Wamena
+- Documents et figures (`docs/`) : [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.fr)
+- Données UK-DALE : non incluses dans le dépôt, sous licence CC BY 4.0. Source : J. Kelly et W. Knottenbelt, « The UK-DALE dataset », *Scientific Data* 2:150007, 2015
