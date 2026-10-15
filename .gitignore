@@ -1,8 +1,20 @@
+# Python
 __pycache__/
 .venv/
+*.pyc
+
+# Notebooks
 .ipynb_checkpoints/
+
+# Données et secrets
+data/raw/
 *.env
 secrets/
-data/raw/
 *.pem
 *.key
+
+# Système et éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
