@@ -18,3 +18,23 @@ secrets/
 Thumbs.db
 .vscode/
 .idea/
+
+# Sorties recréées par les notebooks (on ne garde que celles utiles aux semaines suivantes)
+nilm/notebooks/planning_s8/
+nilm/notebooks/ems_s10/
+nilm/notebooks/resultats/
+nilm/notebooks/house_1/
+nilm/notebooks/demo_house/
+nilm/notebooks/profils_s9/*
+!nilm/notebooks/profils_s9/messages_15min_nilm.csv
+nilm/notebooks/runs_s6/*
+!nilm/notebooks/runs_s6/ukdale_augoff_s0/
+nilm/notebooks/runs_s6/ukdale_augoff_s0/*
+!nilm/notebooks/runs_s6/ukdale_augoff_s0/nilm_cnn.pt
+!nilm/notebooks/runs_s6/ukdale_augoff_s0/resultats_nilm.csv
+nilm/notebooks/export_s7/*
+!nilm/notebooks/export_s7/nilm_meta.json
+!nilm/notebooks/export_s7/nilm_fp32.onnx
+!nilm/notebooks/export_s7/nilm_int8.onnx
+!nilm/notebooks/export_s7/comparaison_int8.csv
+!nilm/notebooks/export_s7/comparaison_int8.png
