@@ -1,0 +1,26 @@
+[
+ {
+  "type": "offre",
+  "titre": "Passer à l'offre Tempo",
+  "texte": "Avec votre consommation, l'offre Tempo coûterait 1066 €/an contre 1180 €/an avec votre offre actuelle (Base).",
+  "gain_eur_an": 113.65847538092225
+ },
+ {
+  "type": "decalage",
+  "titre": "Lancer le lave-linge en heures creuses",
+  "texte": "Vous lancez le lave-linge 5.2 fois par semaine, le plus souvent vers 13 h (99 % en heures pleines). Avec le départ conseillé dans le planning du jour : environ 19 €/an d'économie en Tempo.",
+  "gain_eur_an": 18.7913682426048
+ },
+ {
+  "type": "veille",
+  "titre": "Veille : 159 W en permanence",
+  "texte": "Vos appareils en veille consomment environ 1391 kWh par an (278 €). Chaque tranche de 10 W en moins fait gagner 18 €/an.",
+  "gain_eur_an": 17.52876
+ },
+ {
+  "type": "decalage",
+  "titre": "Lancer le lave-vaisselle en heures creuses",
+  "texte": "Vous lancez le lave-vaisselle 2.4 fois par semaine, le plus souvent vers 22 h (57 % en heures pleines). Avec le départ conseillé dans le planning du jour : environ 4 €/an d'économie en Tempo.",
+  "gain_eur_an": 4.449296266317367
+ }
+]

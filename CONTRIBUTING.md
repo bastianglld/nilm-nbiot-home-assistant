@@ -16,6 +16,21 @@ Format Conventional Commits, en français :
 
 Exemple : `feat(nilm): ajout du classifieur de signatures`
 
+## Tests
+
+Avant d'ouvrir une Pull Request, lancer depuis la racine du dépôt :
+
+```bash
+python -m unittest discover tests
+```
+
+Les mêmes tests tournent automatiquement sur GitHub à chaque Pull Request.
+
+## Notebooks
+
+- Garder les sorties quand elles montrent un résultat (tableaux, figures) ; les vider si elles contiennent des chemins ou des données personnelles.
+- Nommer les notebooks `semaineNN_sujet.ipynb` pour qu'ils restent dans l'ordre.
+
 ## Pull Requests
 
 1. Ouvrir une Pull Request depuis votre branche vers `main`.

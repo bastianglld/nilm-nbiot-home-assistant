@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="310" viewBox="0 0 680 310" font-family="Helvetica, Arial, sans-serif">
+<title>Interface TIC Linky vers STM32</title>
+<defs><marker id="fl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#BA7517" stroke-width="1.5"/></marker></defs>
+<rect width="680" height="310" fill="#ffffff"/>
+<rect x="40" y="90" width="110" height="170" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text x="80" y="180" font-size="14" font-weight="bold" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">Linky</text>
+<text x="140" y="120" font-size="14" fill="#2C2C2A" text-anchor="end" dominant-baseline="central">I1</text>
+<text x="140" y="220" font-size="14" fill="#2C2C2A" text-anchor="end" dominant-baseline="central">I2</text>
+<text x="140" y="248" font-size="12" fill="#5F5E5A" text-anchor="end" dominant-baseline="central">A (libre)</text>
+<rect x="570" y="90" width="80" height="170" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+<text x="610" y="180" font-size="14" font-weight="bold" fill="#3C3489" text-anchor="middle" dominant-baseline="central">STM32</text>
+<text x="578" y="120" font-size="12" fill="#3C3489" dominant-baseline="central">RX (D0)</text>
+<text x="578" y="240" font-size="12" fill="#3C3489" dominant-baseline="central">GND</text>
+<rect x="270" y="100" width="140" height="150" rx="8" fill="none" stroke="#888780" stroke-width="0.8" stroke-dasharray="4 3"/>
+<g fill="none" stroke="#2C2C2A" stroke-width="1.2">
+<path d="M150 120H190"/><rect x="190" y="113" width="60" height="14" rx="2"/><path d="M250 120H310V150"/>
+<path d="M310 168V220H150"/>
+<path d="M385 120V135L365 150"/><path d="M365 140V180"/><path d="M365 170L385 185V240"/>
+<path d="M385 120H570"/>
+<path d="M455 55H485"/><path d="M470 55V70"/><rect x="464" y="70" width="12" height="30" rx="2"/><path d="M470 100V120"/>
+<path d="M520 120V170"/><path d="M506 170H534"/><path d="M506 178H534"/><path d="M520 178V240"/>
+<path d="M385 240H570"/>
+</g>
+<polygon points="300,150 320,150 310,168" fill="none" stroke="#2C2C2A" stroke-width="1.2"/>
+<path d="M300 168H320" stroke="#2C2C2A" stroke-width="1.8"/>
+<line x1="324" y1="154" x2="352" y2="154" stroke="#BA7517" stroke-width="1.2" marker-end="url(#fl)"/>
+<line x1="324" y1="166" x2="352" y2="166" stroke="#BA7517" stroke-width="1.2" marker-end="url(#fl)"/>
+<circle cx="470" cy="120" r="2.5" fill="#2C2C2A"/><circle cx="520" cy="120" r="2.5" fill="#2C2C2A"/><circle cx="520" cy="240" r="2.5" fill="#2C2C2A"/>
+<g font-size="12" fill="#444441">
+<text x="220" y="102" text-anchor="middle">R1 ≈ 1 kΩ</text>
+<text x="470" y="44" text-anchor="middle">3,3 V carte</text>
+<text x="484" y="88">R2 ≈ 4,7 kΩ</text>
+<text x="500" y="170" text-anchor="end">C1 ≈ 1 nF</text>
+<text x="500" y="186" text-anchor="end">(option)</text>
+<text x="340" y="268" text-anchor="middle">Optocoupleur (SFH620A)</text>
+<text x="95" y="292" text-anchor="middle">Côté compteur, 50 kHz</text>
+<text x="520" y="292" text-anchor="middle">Côté carte, UART 9600 bauds 7E1</text>
+</g>
+</svg>
