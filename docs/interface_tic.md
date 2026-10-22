@@ -1,6 +1,6 @@
 # Interface TIC Linky vers STM32
 
-Proposition de montage pour lire la téléinformation client (TIC) du compteur Linky avec la NUCLEO-N657X0-Q. Aucun module TIC du commerce ne communique en NB-IoT (les produits existants passent par Zigbee, Wi-Fi, LoRaWAN ou Modbus) : l'interface est donc à réaliser par l'équipe. Fabrication : Merveille (B). Décodage des trames : Bastian (C).
+Proposition de montage pour lire la téléinformation client (TIC) du compteur Linky avec la NUCLEO-N657X0-Q. Aucun module TIC du commerce ne communique en NB-IoT (les produits existants passent par Zigbee, Wi-Fi, LoRaWAN ou Modbus) : l'interface est donc à réaliser par l'équipe. Fabrication et décodage des trames : Bastian (C).
 
 ![Schéma de l'interface TIC](figures/interface_tic.svg)
 

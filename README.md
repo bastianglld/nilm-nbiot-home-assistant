@@ -36,8 +36,9 @@ L'IA est répartie en deux niveaux :
 | Export int8 et validation sur la NUCLEO-N657X0-Q | Bastian | Fait : 2,05 ms par inférence, 99,5 % de décisions identiques au PC |
 | EMS serveur : prix réels, planning, profils d'usage, conseils | Bastian | Fait en simulation sur un an de données |
 | Format des messages montants et descendants | Bastian, avec A et B | Proposé : [docs/protocole_messages.md](docs/protocole_messages.md) |
-| Interface TIC Linky vers STM32 | Merveille, Bastian | Schéma proposé : [docs/interface_tic.md](docs/interface_tic.md) |
-| Module NB-IoT ST87M01 et capteur | Merveille | À intégrer dans [`firmware/`](firmware/) |
+| Interface TIC Linky vers STM32 | Bastian | Schéma proposé : [docs/interface_tic.md](docs/interface_tic.md) |
+| Capteur de courant | Bastian | À intégrer |
+| Module NB-IoT ST87M01 | Merveil | À intégrer dans [`firmware/`](firmware/) |
 | Broker MQTT TLS et Home Assistant | Mathieu | À intégrer dans [`cloud/`](cloud/) et [`homeassistant/`](homeassistant/) |
 
 ## Résultats principaux
@@ -100,15 +101,15 @@ Les notebooks qui entraînent le réseau (semaines 3 à 7) demandent PyTorch et 
 
 ## Équipe
 
-- **Bastian Guilloud** (C) : modèle NILM, IA embarquée et EMS serveur (flexibilité, prix, profils d'usage)
+- **Bastian Guilloud** (C) : modèle NILM, IA embarquée, capteur de courant et interface TIC, EMS serveur (flexibilité, prix, profils d'usage)
 - **Mathieu Hegoburu** (A) : serveur, Home Assistant et sécurité (broker MQTT, TLS)
-- **Merveille-Joresse Ngoulou-Wamena** (B) : module NB-IoT ST87M01 et capteur
+- **Merveil Joresse N'Goulou Wamena** (B) : module NB-IoT ST87M01 et liaison réseau
 
 Client : Éric Djakam (STMicroelectronics).
 
 ## Licence
 
-- Code : [MIT](LICENSE) © 2026 Bastian Guilloud, Mathieu Hegoburu, Merveille-Joresse Ngoulou-Wamena
+- Code : [MIT](LICENSE) © 2026 Bastian Guilloud, Mathieu Hegoburu, Merveil Joresse N'Goulou Wamena
 - Documents et figures (`docs/`) : [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.fr)
 - Données UK-DALE : non incluses, sous licence CC BY 4.0. Source : J. Kelly et W. Knottenbelt, « The UK-DALE dataset », *Scientific Data* 2:150007, 2015
 - Couleurs Tempo et prix spot : données publiques RTE / EDF (api-couleur-tempo.fr) et Energy-Charts (Fraunhofer ISE)
