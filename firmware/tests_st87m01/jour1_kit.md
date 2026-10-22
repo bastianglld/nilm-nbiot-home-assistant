@@ -2,14 +2,14 @@
 
 Responsable : Merveil (B). Objectif : vérifier que le module ST87M01 dialogue avec le PC, lit la SIM, s'attache au réseau NB-IoT, puis envoie un premier message MQTT. Chaque étape donne la commande, la réponse attendue et quoi faire si ça échoue. Les mesures à relever sont regroupées dans la [fiche de relevé](#fiche-de-relevé) en fin de document.
 
-> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Étape MQTT vérifiée avec la note d'application **ST87MXX_MQTT** (v2.1). Pour le TLS et le démarrage : notes **ST87MXX_TLS** et **ST87MXX_Startup**, installées avec la GUI. Le point encore à confirmer est signalé par ⚠️.
+> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Vérifié avec les notes d'application **ST87MXX_MQTT**, **ST87MXX_TLS** et **ST87MXX_Startup** (v2.1). Les points encore à confirmer sont signalés par ⚠️.
 
 > **Données personnelles.** Ne jamais copier dans le dépôt l'IMSI, l'ICCID (numéro de la SIM), l'IMEI ni aucun identifiant ou mot de passe. Les noter sur papier ou dans un fichier local ignoré par Git.
 
 ## 0. Avant l'arrivée du kit
 
 - [ ] Installer **STSW-ST87MGUI** sur le PC (Windows, sans droits administrateur). Il contient la console AT, le **manuel des commandes AT** et les notes d'application (démarrage, MQTT, TCP/UDP).
-- [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), 8 bits, sans parité, 1 bit de stop ⚠️ (format à confirmer dans le manuel du kit). Fin de ligne : retour chariot (`<CR>`).
+- [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), 8 bits, sans parité, 1 bit de stop ⚠️ (réglage courant ; ni le manuel ni les notes ne le précisent : le logiciel de ST le règle lui-même). Fin de ligne : retour chariot (`<CR>`).
 - [ ] Demander à Mathieu l'adresse et le port de test du broker Azure ; à défaut, prévoir un broker public de test pour un seul message sans donnée personnelle.
 
 ## 1. Montage
@@ -95,7 +95,21 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 | 6.8 | `AT#MQTTDISC` | `OK` | Déconnexion propre |
 | 6.9 | `AT#SOCKETCLOSE=5,0` | `OK` | Ferme la socket (et le lien TCP s'il est encore ouvert) |
 
-**Ensuite : TLS sur le port 8883** (planning : S5). D'après le manuel : charger le certificat de l'autorité du broker au format **DER** avec `AT#TLSCERTADD` dans un profil de sécurité, puis créer la socket avec ce profil (`AT#SOCKETCREATE=5,0,TCP,,<délai>,<délai>,0,<profil>,1`). Le dernier paramètre active la **reprise de session TLS** (activée par défaut) : elle évite de refaire tout l'échange de certificats à chaque connexion, ce qui économise beaucoup de données. Détails : note d'application ST87MXX_TLS.
+**Ensuite : TLS sur le port 8883** (planning : S5). D'après la note d'application ST87MXX_TLS :
+
+- **Seuls les certificats ECDSA sont acceptés : les certificats RSA ne sont pas supportés.** Courbes : NIST P-256 ou P-384 (ou Brainpool équivalentes). Le certificat du broker de Mathieu doit donc être ECDSA.
+- Versions : TLS 1.2 et TLS 1.3. En TLS 1.3, le certificat racine (CA) **doit** être chargé dans le module ; en TLS 1.2, c'est facultatif mais conseillé.
+- Le certificat racine doit être **auto-signé** (une vraie racine, pas un intermédiaire), au format **DER**, envoyé en hexadécimal.
+- Le module range ses clés et certificats dans un « profil de sécurité » (`sec_id`), avec **10 fichiers au plus** en tout.
+
+| Étape | Commande | Rôle |
+|---|---|---|
+| T.1 | `AT#TLSCERTADD=0,1,<longueur>,<certificat racine DER en hexadécimal>` | Charge le certificat racine dans le profil 0 (type 1 = CA racine) |
+| T.2 | `AT#RESET=1` | Sauvegarde et redémarre |
+| T.3 | `AT#SOCKETCREATE=5,0,TCP,,10,10,8,0,1` | Socket TCP avec le profil de sécurité 0, la reprise de session TLS (1) et le message `#TLS` qui confirme la session (8) |
+| T.4 | `AT#MQTTCONNECT=5,0,<adresse IP>,8883,<utilisateur>,<mot de passe>` | Connexion chiffrée au broker |
+
+**Deux pistes à voir avec Mathieu :** créer une petite autorité de certification ECDSA pour le projet (comme dans l'exemple de ST), ce qui garantit une racine auto-signée ECDSA ; ou utiliser un **PSK** (clé partagée, `AT#TLSKEYADD` + `AT#TLSCERTADD` type 2), qui évite d'échanger des certificats à chaque connexion et économise donc des données. Mosquitto sait gérer les PSK en TLS 1.2 ⚠️ (à vérifier côté serveur).
 
 ## 7. Arrêt propre
 
@@ -103,6 +117,7 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 |---|---|
 | `AT#PWROFF` | Détache le module du réseau, sauvegarde la configuration et l'éteint (`OK` puis `#SHUTDOWN`). Délai maximal de 300 s par défaut, réglable : `AT#PWROFF=30`. Pour le rallumer : bouton ou un caractère envoyé sur l'UART |
 | `AT#RESET=1` | Redémarre le module en **sauvegardant** les réglages en mémoire (nécessaire après un changement de configuration) |
+| `AT#RFACTORY` | Redémarre avec la **configuration d'usine** (note Startup) : en dernier recours si le module est mal configuré |
 
 Éviter de reconfigurer le module à chaque démarrage : les réglages sont gardés en mémoire, et la mémoire flash supporte un nombre limité d'écritures.
 
@@ -118,6 +133,7 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 | Keep-alive MQTT | 120 s (manuel) ou 10 s (note MQTT) par défaut | À fixer soi-même avec Mathieu pour ne pas empêcher la veille |
 | Contexte IP | 5 par défaut | À utiliser dans `AT#DNS`, `AT#SOCKETCREATE`, `AT#MQTTCONNECT` |
 | Reprise de session TLS | Activée par défaut | Bonne nouvelle pour le budget de données |
+| Certificats TLS | ECDSA uniquement (pas de RSA), racine auto-signée en DER | À dire à Mathieu avant de créer le certificat du broker |
 
 ## Économiser les 50 Mo de la SIM
 
