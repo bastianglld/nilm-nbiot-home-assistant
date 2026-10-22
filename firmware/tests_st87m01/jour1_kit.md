@@ -11,6 +11,10 @@ Responsable : Merveil (B). Objectif : vérifier que le module ST87M01 dialogue a
 - [ ] Installer **STSW-ST87MGUI** sur le PC (Windows, sans droits administrateur). Il contient la console AT, le **manuel des commandes AT** et les notes d'application (démarrage, MQTT, TCP/UDP).
 - [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), 8 bits, sans parité, 1 bit de stop ⚠️ (réglage courant ; ni le manuel ni les notes ne le précisent : le logiciel de ST le règle lui-même). Fin de ligne : retour chariot (`<CR>`).
 - [ ] Demander à Mathieu l'adresse et le port de test du broker Azure ; à défaut, prévoir un broker public de test pour un seul message sans donnée personnelle.
+- [ ] **SIM Wireless Logic** : vérifier sur leur plateforme de gestion que la SIM est **activée**, demander l'**APN** à utiliser et **confirmer que la SIM a une couverture NB-IoT en France** (et sur quel réseau). Sans ça, l'attache échouera quoi qu'on fasse.
+- [ ] Dans la GUI de ST, vérifier s'il existe un **firmware plus récent** pour le module (panneau de mise à jour) et noter la version installée.
+- [ ] Configurer le terminal pour **enregistrer toute la session dans un fichier journal** : c'est la preuve des tests pour le rapport (penser à y masquer IMSI, ICCID et IMEI avant de le partager).
+- [ ] Documents encore à récupérer (installés avec la GUI) : le **manuel de la carte EVKITST87M01-2** (cavaliers, choix de l'alimentation, signification des LED) et la note **ST87MXX_TCP_UDP_IP** (configuration de la couche IP, à laquelle renvoie la note MQTT).
 
 ## 1. Montage
 
@@ -34,6 +38,12 @@ Si aucun port COM n'apparaît : changer de câble (certains ne transportent que 
 
 Au démarrage, le module annonce `#SYSSTART` (après une mise sous tension) ou `#REBOOT_RESET` / `#REBOOT_HOST` (après un reset). Attendre ce message avant d'envoyer des commandes.
 
+| Étape | Commande | Réponse attendue | Pourquoi |
+|---|---|---|---|
+| 2.5 | `AT#SLEEPMODE?` | `#SLEEPMODE: <0 ou 1>,…` | Si la mise en veille est active (1), le module peut s'endormir pendant les tests et ne plus répondre. Pour la séance : `AT#SLEEPMODE=0` puis `AT#RESET=1` (prend effet après le redémarrage). **La réactiver** pour les mesures de consommation (S5–S6) |
+
+Si le module ne répond plus en cours de test : il dort probablement. Un caractère envoyé sur l'UART le réveille.
+
 ## 3. Carte SIM
 
 | Étape | Commande | Réponse attendue | Si ça échoue |
@@ -46,13 +56,14 @@ Au démarrage, le module annonce `#SYSSTART` (après une mise sous tension) ou `
 
 | Étape | Commande | Réponse attendue | Si ça échoue |
 |---|---|---|---|
+| 4.0 | `AT#BANDSEL?` | `#BANDSEL: …` avec au moins les bandes **8 et 20** (bandes NB-IoT européennes) | Comparer avec `AT#BANDSEL=?` ; ne modifier qu'en cas d'échec d'attache, après avoir demandé à Wireless Logic les bandes utilisées en France (changement pris en compte après `AT#RESET=1`) |
 | 4.1 | `AT+CFUN?` | `+CFUN: 1` (radio active) | Envoyer `AT+CFUN=1` |
 | 4.2 | `AT+CEREG=2` | `OK` (active le détail de l'enregistrement) | — |
 | 4.3 | `AT+CEREG?` à répéter toutes les 10 à 30 s | `+CEREG: 2,1,…` ou **`+CEREG: 2,5,…`** | Voir le tableau ci-dessous |
 | 4.4 | `AT+COPS?` | Le réseau trouvé (nom ou code PLMN) | — |
 | 4.5 | `AT+CGDCONT?` | Le contexte de données **0** (créé automatiquement au démarrage) et son APN | Si l'APN est vide ou faux : demander l'APN à Wireless Logic, puis `AT+CFUN=0`, configurer avec `AT+CGDCONT`, `AT#RESET=1` (sauvegarde et redémarrage) |
 | 4.6 | `AT+CGPADDR` | Une adresse IP | Pas d'adresse : contexte de données non actif, revoir l'APN |
-| 4.7 | Attendre `+CGEV: ME PDN ACT 0` (connexion de données établie, selon la note MQTT), puis lire `AT#IPCFG?` | Pile IPv4 active (`#IPCFG: 5,…` : le **contexte IP 5** est celui utilisé par défaut) | Si la pile IP reste inactive : configuration manuelle avec `AT#IPCFG` (voir la note ST87MXX_TCP_UDP_IP) |
+| 4.7 | Attendre `+CGEV: ME PDN ACT 0` (connexion de données établie, selon la note MQTT ; si ce message n'apparaît jamais, activer les notifications avec `AT+CGEREP=1`), puis lire `AT#IPCFG?` | Pile IPv4 active (`#IPCFG: 5,…` : le **contexte IP 5** est celui utilisé par défaut) | Si la pile IP reste inactive : configuration manuelle avec `AT#IPCFG` (voir la note ST87MXX_TCP_UDP_IP) |
 
 **Lire le deuxième chiffre de `+CEREG`** (norme 3GPP) :
 
@@ -135,6 +146,10 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 | Reprise de session TLS | Activée par défaut | Bonne nouvelle pour le budget de données |
 | Certificats TLS | ECDSA uniquement (pas de RSA), racine auto-signée en DER | À dire à Mathieu avant de créer le certificat du broker |
 
+## Pour plus tard : mesurer la consommation
+
+Quand le module entre en veille, il affiche l'énergie consommée, par exemple `#ENERGY: 43.6` puis `#SLEEP PSM 3187.8s` (exemple du manuel, `AT#SLEEPMODE`). Ces messages serviront aux mesures PSM / eDRX de S5–S6 : penser à les relever dans le journal.
+
 ## Économiser les 50 Mo de la SIM
 
 La SIM du kit donne **50 Mo de données sur 6 mois** (environ 280 ko par jour). Pendant les tests :
@@ -148,7 +163,8 @@ La SIM du kit donne **50 Mo de données sur 6 mois** (environ 280 ko par jour). 
 |---|---|---|
 | Aucune réponse à `AT` | Mauvais port, mauvais débit, module en démarrage | Changer de port, vérifier les 115 200 bauds, reset puis attendre `#SYSSTART` |
 | `#SIMST: 0` ou `+CPIN` différent de `READY` | SIM mal insérée ou protégée | Réinsérer la SIM hors tension ; contacter Wireless Logic |
-| `+CEREG` reste à 2 | Pas de couverture, première recherche longue, mauvaise bande | Attendre quelques minutes ; près d'une fenêtre ; vérifier l'antenne |
+| `+CEREG` reste à 2 | Pas de couverture, première recherche longue, mauvaise bande, SIM sans accès NB-IoT en France | Attendre quelques minutes ; près d'une fenêtre ; vérifier l'antenne ; `AT#BANDSEL?` ; demander à Wireless Logic le réseau et les bandes utilisés en France |
+| Le module ne répond plus en cours de test | Il est entré en veille | Envoyer un caractère pour le réveiller ; pour la séance, `AT#SLEEPMODE=0` puis `AT#RESET=1` |
 | `+CEREG` à 3 | SIM non activée ou refusée | Contacter Wireless Logic (plateforme de gestion de la SIM) |
 | Enregistré mais pas d'adresse IP | APN absent ou faux | Configurer l'APN, puis `AT#RESET=1` |
 | Connexion MQTT refusée | Mauvais contexte (utiliser 5), nom au lieu d'une adresse IP, port fermé côté Azure, identifiants trop longs ou faux | Résoudre le nom avec `AT#DNS` ; vérifier avec Mathieu le port et le compte (25 / 50 caractères au plus) |
