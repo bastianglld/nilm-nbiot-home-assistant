@@ -2,30 +2,34 @@
 
 Responsable : Merveil (B). Objectif : vérifier que le module ST87M01 dialogue avec le PC, lit la SIM, s'attache au réseau NB-IoT, puis envoie un premier message MQTT. Chaque étape donne la commande, la réponse attendue et quoi faire si ça échoue. Les mesures à relever sont regroupées dans la [fiche de relevé](#fiche-de-relevé) en fin de document.
 
-> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Vérifié avec les notes d'application **ST87MXX_MQTT**, **ST87MXX_TLS**, **ST87MXX_Startup** et **ST87MXX_TCP_UDP_IP** (v2.1), et le **Design Guide ST87M01** (v2.4). Les points encore à confirmer sont signalés par ⚠️.
+> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Vérifié avec les notes d'application **ST87MXX_MQTT**, **ST87MXX_TLS**, **ST87MXX_Startup** et **ST87MXX_TCP_UDP_IP** (v2.1), le **Design Guide ST87M01** (v2.4) et le **manuel de la carte EVKITST87M01-2** (rév. 1). Les points encore à confirmer sont signalés par ⚠️.
 
 > **Données personnelles.** Ne jamais copier dans le dépôt l'IMSI, l'ICCID (numéro de la SIM), l'IMEI ni aucun identifiant ou mot de passe. Les noter sur papier ou dans un fichier local ignoré par Git.
 
 ## 0. Avant l'arrivée du kit
 
-- [ ] Installer **STSW-ST87MGUI** sur le PC (Windows, sans droits administrateur). Il contient la console AT, le **manuel des commandes AT** et les notes d'application (démarrage, MQTT, TCP/UDP).
-- [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), **sans contrôle de flux** (Design Guide), 8 bits, sans parité, 1 bit de stop ⚠️ (réglage courant, que la documentation ne précise pas : le logiciel de ST le règle lui-même). Fin de ligne : retour chariot (`<CR>`).
+- [ ] Installer **STSW-ST87MGUI** sur le PC (Windows, sans droits administrateur). Il contient la console AT, le manuel des commandes AT et les notes d'application.
+- [ ] Installer le **pilote du convertisseur USB-UART CP2105** (Silicon Labs, « VCP drivers » : https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers). Sans lui, aucun port COM n'apparaît.
+- [ ] Prévoir un terminal série (la console de la GUI, PuTTY, Tera Term…) réglé ainsi (manuel de la carte, § 8.2) : **115 200 bauds, 8 bits, sans parité, 1 bit de stop, sans contrôle de flux**. Fin de ligne : retour chariot (`<CR>`).
 - [ ] Demander à Mathieu l'adresse et le port de test du broker Azure ; à défaut, prévoir un broker public de test pour un seul message sans donnée personnelle.
 - [ ] **SIM Wireless Logic** : vérifier sur leur plateforme de gestion que la SIM est **activée**, demander l'**APN** à utiliser et **confirmer que la SIM a une couverture NB-IoT en France** (et sur quel réseau). Sans ça, l'attache échouera quoi qu'on fasse.
 - [ ] Dans la GUI de ST, vérifier s'il existe un **firmware plus récent** pour le module (panneau de mise à jour) et noter la version installée.
 - [ ] Configurer le terminal pour **enregistrer toute la session dans un fichier journal** : c'est la preuve des tests pour le rapport (penser à y masquer IMSI, ICCID et IMEI avant de le partager).
-- [ ] Document encore à récupérer (installé avec la GUI) : le **manuel de la carte EVKITST87M01-2** (cavaliers, choix de l'alimentation, LED propres à la carte).
 
-## 1. Montage
+## 1. Montage (configuration « standalone », manuel de la carte § 14.1)
 
 | Étape | Action | Attendu |
 |---|---|---|
-| 1.1 | **Visser l'antenne LTE** sur le connecteur SMA RF **avant toute mise sous tension**. L'antenne GNSS n'est pas utile pour ce test. | Antenne bien serrée |
-| 1.2 | Insérer la **SIM nano** Wireless Logic dans son support, carte hors tension. | SIM en place |
-| 1.3 | Brancher le câble **USB Micro-B** au PC. | Les LED d'activité s'allument |
-| 1.4 | Ouvrir la GUI (ou le terminal) sur le port COM qui apparaît. | Le port est ouvert |
+| 1.1 | Vérifier les **cavaliers** de la configuration par défaut (alimentation par USB, § 6.2.1) : **J200 ouvert, J201 1-2 fermé, J203 fermé, J207 2-3 fermé, J208 1-2 fermé, J209 1-2 fermé** | Configuration d'usine ; le module est alimenté en 2,5 V par le régulateur de la carte |
+| 1.2 | Mettre l'**interrupteur UART** en position **« PC Host »** (§ 8.2, figure 12) | Les commandes AT passent par l'USB, et non par les connecteurs Arduino |
+| 1.3 | Visser l'**antenne RF (LTE)** sur le connecteur **K204**, **avant toute mise sous tension**. Ne pas la confondre avec K202, réservé à l'antenne GNSS, inutile pour ce test | Antenne bien serrée |
+| 1.4 | Insérer la **SIM nano** Wireless Logic dans le support **K301**, carte hors tension | SIM en place |
+| 1.5 | Brancher le câble USB Micro-B au connecteur **K300** | **LED0 et LED1 clignotent en vert** (module en marche), **LED2 rouge allumée** (mode actif). LED2 éteinte = module en veille |
+| 1.6 | Dans le gestionnaire de périphériques, le CP2105 crée **deux ports COM** : choisir le **« Standard COM Port »** (§ 8.2, figure 14) | Le port s'ouvre dans le terminal |
 
-Si aucun port COM n'apparaît : changer de câble (certains ne transportent que l'alimentation), changer de port USB, regarder le gestionnaire de périphériques.
+Les LED **D300 et D301** montrent l'activité de l'UART (émission et réception) : elles clignotent quand une commande passe.
+
+Si aucun port COM n'apparaît : vérifier le pilote CP2105, changer de câble (certains ne transportent que l'alimentation), changer de port USB. Si le terminal ne répond pas : vérifier qu'on a bien pris le **Standard** COM Port et non l'autre, et la position de l'interrupteur UART.
 
 ## 2. Dialogue avec le module
 
@@ -165,6 +169,8 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 
 Quand le module entre en veille, il affiche l'énergie consommée, par exemple `#ENERGY: 43.6` puis `#SLEEP PSM 3187.8s` (exemple du manuel, `AT#SLEEPMODE`). Ces messages serviront aux mesures PSM / eDRX de S5–S6 : penser à les relever dans le journal.
 
+**Montage pour mesurer :** le manuel de la carte prévoit une configuration dédiée (§ 6.3.3) : alimentation externe en **2,5 V**, avec **J200 fermé, J201 1-2 fermé, J203 ouvert, J207 2-3 fermé, J208 2-3 fermé, J209 1-2 fermé**. L'ampèremètre se branche alors sur l'alimentation externe.
+
 Valeurs de référence du Design Guide (2,5 V, conditions radio idéales), à comparer à nos mesures :
 
 | État | Consommation typique |
@@ -187,7 +193,7 @@ La SIM du kit donne **50 Mo de données sur 6 mois** (environ 280 ko par jour). 
 
 | Symptôme | Causes probables | Que faire |
 |---|---|---|
-| Aucune réponse à `AT` | Mauvais port, mauvais débit, module en démarrage | Changer de port, vérifier les 115 200 bauds, reset puis attendre `#SYSSTART` |
+| Aucune réponse à `AT` | « Enhanced » COM Port au lieu du « Standard », interrupteur UART sur « associate board », mauvais débit, module en démarrage | Prendre le Standard COM Port, interrupteur sur « PC Host », 115 200 bauds 8N1, bouton reset puis attendre `#SYSSTART` |
 | `#SIMST: 0` ou `+CPIN` différent de `READY` | SIM mal insérée ou protégée | Réinsérer la SIM hors tension ; contacter Wireless Logic |
 | `+CEREG` reste à 2 | Pas de couverture, première recherche longue, mauvaise bande, SIM sans accès NB-IoT en France | Attendre quelques minutes ; près d'une fenêtre ; vérifier l'antenne ; `AT#BANDSEL?` ; demander à Wireless Logic le réseau et les bandes utilisés en France |
 | Le module ne répond plus en cours de test | Il est entré en veille | Envoyer un caractère pour le réveiller ; pour la séance, `AT#SLEEPMODE=0` puis `AT#RESET=1` |
