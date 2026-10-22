@@ -1,6 +1,6 @@
 # Firmware de la carte
 
-Responsable : Merveil Joresse N'Goulou Wamena (B) pour le module NB-IoT ST87M01, avec Bastian Guilloud (C) pour la mesure (capteur de courant, interface TIC) et l'intégration du modèle NILM.
+Responsable : Merveil-Joresse Ngoulou-Wamena (B), avec Bastian Guilloud (C) pour l'intégration du modèle NILM.
 
 Ce dossier accueillera le code de la NUCLEO-N657X0-Q et les tests du module NB-IoT ST87M01 :
 
