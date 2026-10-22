@@ -100,7 +100,7 @@ Les notebooks qui entraînent le réseau (semaines 3 à 7) demandent PyTorch et 
 
 ## Équipe
 
-- **Bastian Guilloud** (C) : modèle NILM, IA embarquée et EMS serveur (flexibilité, prix, profils d'usage)
+- **Bastian Guilloud** (C) : modèle NILM, IA embarquée, capteur de courant et interface TIC, EMS serveur (flexibilité, prix, profils d'usage)
 - **Mathieu Hegoburu** (A) : serveur, Home Assistant et sécurité (broker MQTT, TLS)
 - **Merveil-Joresse Ngoulou-Wamena** (B) : module NB-IoT ST87M01 et capteur
 
