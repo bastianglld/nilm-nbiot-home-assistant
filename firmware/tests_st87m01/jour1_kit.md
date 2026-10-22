@@ -2,7 +2,7 @@
 
 Responsable : Merveil (B). Objectif : vérifier que le module ST87M01 dialogue avec le PC, lit la SIM, s'attache au réseau NB-IoT, puis envoie un premier message MQTT. Chaque étape donne la commande, la réponse attendue et quoi faire si ça échoue. Les mesures à relever sont regroupées dans la [fiche de relevé](#fiche-de-relevé) en fin de document.
 
-> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Les exemples complets sont dans les notes d'application installées avec la GUI : **ST87MXX_Startup**, **ST87MXX_MQTT** et **ST87MXX_TLS**. Les points encore à confirmer dans ces notes sont signalés par ⚠️.
+> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Étape MQTT vérifiée avec la note d'application **ST87MXX_MQTT** (v2.1). Pour le TLS et le démarrage : notes **ST87MXX_TLS** et **ST87MXX_Startup**, installées avec la GUI. Le point encore à confirmer est signalé par ⚠️.
 
 > **Données personnelles.** Ne jamais copier dans le dépôt l'IMSI, l'ICCID (numéro de la SIM), l'IMEI ni aucun identifiant ou mot de passe. Les noter sur papier ou dans un fichier local ignoré par Git.
 
@@ -10,7 +10,6 @@ Responsable : Merveil (B). Objectif : vérifier que le module ST87M01 dialogue a
 
 - [ ] Installer **STSW-ST87MGUI** sur le PC (Windows, sans droits administrateur). Il contient la console AT, le **manuel des commandes AT** et les notes d'application (démarrage, MQTT, TCP/UDP).
 - [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), 8 bits, sans parité, 1 bit de stop ⚠️ (format à confirmer dans le manuel du kit). Fin de ligne : retour chariot (`<CR>`).
-- [ ] Lire la note d'application **ST87MXX_MQTT** : elle donne la séquence complète d'exemple, en particulier les valeurs de délai de `AT#SOCKETCREATE`.
 - [ ] Demander à Mathieu l'adresse et le port de test du broker Azure ; à défaut, prévoir un broker public de test pour un seul message sans donnée personnelle.
 
 ## 1. Montage
@@ -53,7 +52,7 @@ Au démarrage, le module annonce `#SYSSTART` (après une mise sous tension) ou `
 | 4.4 | `AT+COPS?` | Le réseau trouvé (nom ou code PLMN) | — |
 | 4.5 | `AT+CGDCONT?` | Le contexte de données **0** (créé automatiquement au démarrage) et son APN | Si l'APN est vide ou faux : demander l'APN à Wireless Logic, puis `AT+CFUN=0`, configurer avec `AT+CGDCONT`, `AT#RESET=1` (sauvegarde et redémarrage) |
 | 4.6 | `AT+CGPADDR` | Une adresse IP | Pas d'adresse : contexte de données non actif, revoir l'APN |
-| 4.7 | Attendre le message `#IPCFG: 0,0,1`, ou lire `AT#IPCFG?` | Pile IPv4 active sur le contexte 0 | Si la pile IP reste inactive : `AT#IPCFG=0,0,"<adresse lue en 4.6>"` (configuration manuelle) |
+| 4.7 | Attendre `+CGEV: ME PDN ACT 0` (connexion de données établie, selon la note MQTT), puis lire `AT#IPCFG?` | Pile IPv4 active (`#IPCFG: 5,…` : le **contexte IP 5** est celui utilisé par défaut) | Si la pile IP reste inactive : configuration manuelle avec `AT#IPCFG` (voir la note ST87MXX_TCP_UDP_IP) |
 
 **Lire le deuxième chiffre de `+CEREG`** (norme 3GPP) :
 
@@ -82,21 +81,21 @@ Ordres de grandeur pour la RSRP : au-dessus de −100 dBm, bon ; de −100 à �
 
 ## 6. Premier message MQTT
 
-D'après le manuel, la connexion MQTT passe par une **socket TCP** créée sur le contexte 0. Le broker doit être donné par son **adresse IP** (pas par son nom) : si Mathieu donne un nom DNS, le résoudre d'abord avec `AT#DNS`.
+D'après le manuel et la note MQTT : une fois la connexion de données établie, on configure le client MQTT, on crée une **socket TCP** sur le **contexte IP 5** (celui utilisé par défaut), puis `AT#MQTTCONNECT` se connecte directement au broker (pas besoin de `AT#TCPCONNECT`). Le broker est donné par son **adresse IP** : si Mathieu donne un nom, le résoudre d'abord avec `AT#DNS`. Les exemples de ST écrivent les textes sans guillemets.
 
 | Étape | Commande | Attendu | Remarques |
 |---|---|---|---|
-| 6.1 | `AT#DNS=0,0,"<nom du broker>"` | `#DNS: <adresse IP>,<durée de validité>` | Seulement si le broker a un nom. Le serveur DNS se règle avec `AT#IPPARAMS` (réseau ou mémoire) |
-| 6.2 | `AT#MQTTCFG="nilm_01",,,,0` | `OK` | Nom du client (25 caractères au plus). Le dernier champ est le **keep-alive** : 120 s par défaut, ce qui réveille le module toutes les 2 min. Pour les tests, 0 (désactivé) ; à régler ensuite avec la mise en veille |
-| 6.3 | `AT#SOCKETCREATE=0,0,"TCP",,30,30` | `#SOCKETCREATE: 0` (numéro de la socket) | Contexte 0, IPv4, TCP, port local libre. ⚠️ Les deux délais (30, 30) sont des valeurs d'essai : prendre celles de la note MQTT. Au plus 3 sockets (1 TCP et 2 UDP) |
-| 6.4 | `AT#MQTTCONNECT=0,0,"<adresse IP>",1883,"<utilisateur>","<mot de passe>"` | `OK` | Contexte 0, socket 0, port 1883 en clair pour ce premier test seulement. `AT#MQTTCONNECT` reçoit lui-même l'adresse du broker : a priori pas besoin de `AT#TCPCONNECT` avant ⚠️ (à confirmer dans la note MQTT). Utilisateur : 25 caractères au plus ; mot de passe : 50 au plus. Vérifier avec `AT#MQTTCONNECT?` → `#MQTTCONNECT: 1,…` |
-| 6.5 | `AT#MQTTPUB="maison/nilm_01/q","1615;21;48;0;0;310",3,1,0` | `OK` | Topic et message : **50 caractères au plus chacun**. 3 essais, QoS 1, sans *retain*. Mathieu vérifie : `mosquitto_sub -t 'maison/nilm_01/#' -v` |
-| 6.6 | `AT#MQTTSUB="maison/nilm_01/plan",1` | `OK` | Mathieu publie un planning de test |
+| 6.1 | `AT#DNS=5,0,<nom du broker>` | `#DNS: <adresse IP>,<durée de validité>` | Seulement si le broker a un nom. Le serveur DNS se règle avec `AT#IPPARAMS` (réseau ou mémoire) |
+| 6.2 | `AT#MQTTCFG?` puis `AT#MQTTCFG=nilm_01,20,20,10,0` | `OK` | Nom du client (25 caractères au plus), délai de connexion 20 s, délai de protocole 20 s, 10 essais. Dernier champ : **keep-alive**, mis à 0 pour les tests. Attention : le manuel annonce 120 s par défaut, la note MQTT 10 s ; le lire avec `AT#MQTTCFG?` et le fixer soi-même |
+| 6.3 | `AT#SOCKETCREATE=5,0,TCP,,10,10` | `#SOCKETCREATE: 0` (numéro de la socket) | Contexte 5, IPv4, TCP, port local libre, délais d'envoi et de réception de 10 s (exemple de ST). Si les délais expirent, monter à 30 s : la note demande des délais « assez grands » pour le réseau. Au plus 3 sockets (1 TCP et 2 UDP) |
+| 6.4 | `AT#MQTTCONNECT=5,0,<adresse IP>,1883,<utilisateur>,<mot de passe>` | `OK` | Port 1883 en clair pour ce premier test seulement. Utilisateur : 25 caractères au plus ; mot de passe : 50 au plus. Vérifier avec `AT#MQTTCONNECT?` → `#MQTTCONNECT: 1,…` |
+| 6.5 | `AT#MQTTPUB=maison/nilm_01/q,1615;21;48;0;0;310,3,1,0` | `OK` | Topic et message : **50 caractères au plus chacun**. 3 essais, QoS 1, sans *retain*. Si le `;` du message pose problème, réessayer avec le message entre guillemets. Mathieu vérifie : `mosquitto_sub -t 'maison/nilm_01/#' -v` |
+| 6.6 | `AT#MQTTSUB=maison/nilm_01/plan,1` | `OK` | Mathieu publie un planning de test |
 | 6.7 | (attendre) | `#MQTTRECV: maison/nilm_01/plan, 2101;R;000003;0002AAAAA005;22;22` | Message reçu du broker |
 | 6.8 | `AT#MQTTDISC` | `OK` | Déconnexion propre |
-| 6.9 | `AT#SOCKETCLOSE=0,0` | `OK` | Ferme la socket (et le lien TCP s'il est encore ouvert) |
+| 6.9 | `AT#SOCKETCLOSE=5,0` | `OK` | Ferme la socket (et le lien TCP s'il est encore ouvert) |
 
-**Ensuite : TLS sur le port 8883** (planning : S5). D'après le manuel : charger le certificat de l'autorité du broker au format **DER** avec `AT#TLSCERTADD` dans un profil de sécurité, puis créer la socket avec ce profil (`AT#SOCKETCREATE=0,0,"TCP",,<délai>,<délai>,0,<profil>,1`). Le dernier paramètre active la **reprise de session TLS** (activée par défaut) : elle évite de refaire tout l'échange de certificats à chaque connexion, ce qui économise beaucoup de données. Détails : note d'application ST87MXX_TLS.
+**Ensuite : TLS sur le port 8883** (planning : S5). D'après le manuel : charger le certificat de l'autorité du broker au format **DER** avec `AT#TLSCERTADD` dans un profil de sécurité, puis créer la socket avec ce profil (`AT#SOCKETCREATE=5,0,TCP,,<délai>,<délai>,0,<profil>,1`). Le dernier paramètre active la **reprise de session TLS** (activée par défaut) : elle évite de refaire tout l'échange de certificats à chaque connexion, ce qui économise beaucoup de données. Détails : note d'application ST87MXX_TLS.
 
 ## 7. Arrêt propre
 
@@ -116,7 +115,8 @@ D'après le manuel, la connexion MQTT passe par une **socket TCP** créée sur l
 | Mot de passe | 50 caractères au plus | Idem |
 | Sockets | 1 TCP et 2 UDP au plus | Une seule connexion MQTT à la fois |
 | Adresse du broker | Adresse IP | Résolution DNS avec `AT#DNS`, ou IP fixe côté Azure |
-| Keep-alive MQTT | 120 s par défaut | À régler avec Mathieu pour ne pas empêcher la veille |
+| Keep-alive MQTT | 120 s (manuel) ou 10 s (note MQTT) par défaut | À fixer soi-même avec Mathieu pour ne pas empêcher la veille |
+| Contexte IP | 5 par défaut | À utiliser dans `AT#DNS`, `AT#SOCKETCREATE`, `AT#MQTTCONNECT` |
 | Reprise de session TLS | Activée par défaut | Bonne nouvelle pour le budget de données |
 
 ## Économiser les 50 Mo de la SIM
@@ -135,7 +135,7 @@ La SIM du kit donne **50 Mo de données sur 6 mois** (environ 280 ko par jour). 
 | `+CEREG` reste à 2 | Pas de couverture, première recherche longue, mauvaise bande | Attendre quelques minutes ; près d'une fenêtre ; vérifier l'antenne |
 | `+CEREG` à 3 | SIM non activée ou refusée | Contacter Wireless Logic (plateforme de gestion de la SIM) |
 | Enregistré mais pas d'adresse IP | APN absent ou faux | Configurer l'APN, puis `AT#RESET=1` |
-| Connexion MQTT refusée | Nom au lieu d'une adresse IP, port fermé côté Azure, identifiants trop longs ou faux | Résoudre le nom avec `AT#DNS` ; vérifier avec Mathieu le port et le compte (25 / 50 caractères au plus) |
+| Connexion MQTT refusée | Mauvais contexte (utiliser 5), nom au lieu d'une adresse IP, port fermé côté Azure, identifiants trop longs ou faux | Résoudre le nom avec `AT#DNS` ; vérifier avec Mathieu le port et le compte (25 / 50 caractères au plus) |
 | `ERROR` sans détail | Erreurs détaillées non activées | `AT+CMEE=2`, puis chercher le code dans le chapitre « Error codes » du manuel |
 
 ## Fiche de relevé
