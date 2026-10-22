@@ -2,19 +2,19 @@
 
 Responsable : Merveil (B). Objectif : vérifier que le module ST87M01 dialogue avec le PC, lit la SIM, s'attache au réseau NB-IoT, puis envoie un premier message MQTT. Chaque étape donne la commande, la réponse attendue et quoi faire si ça échoue. Les mesures à relever sont regroupées dans la [fiche de relevé](#fiche-de-relevé) en fin de document.
 
-> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Vérifié avec les notes d'application **ST87MXX_MQTT**, **ST87MXX_TLS** et **ST87MXX_Startup** (v2.1). Les points encore à confirmer sont signalés par ⚠️.
+> **Source des commandes.** Manuel *ST87M01 AT commands description* (ST87MXX_UM_AT, rév. 0.3), installé avec le logiciel STSW-ST87MGUI. Les commandes `AT+…` suivent les normes 3GPP TS 27.005 / 27.007 ; les commandes `AT#…` sont propres à ST. Vérifié avec les notes d'application **ST87MXX_MQTT**, **ST87MXX_TLS**, **ST87MXX_Startup** et **ST87MXX_TCP_UDP_IP** (v2.1), et le **Design Guide ST87M01** (v2.4). Les points encore à confirmer sont signalés par ⚠️.
 
 > **Données personnelles.** Ne jamais copier dans le dépôt l'IMSI, l'ICCID (numéro de la SIM), l'IMEI ni aucun identifiant ou mot de passe. Les noter sur papier ou dans un fichier local ignoré par Git.
 
 ## 0. Avant l'arrivée du kit
 
 - [ ] Installer **STSW-ST87MGUI** sur le PC (Windows, sans droits administrateur). Il contient la console AT, le **manuel des commandes AT** et les notes d'application (démarrage, MQTT, TCP/UDP).
-- [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), 8 bits, sans parité, 1 bit de stop ⚠️ (réglage courant ; ni le manuel ni les notes ne le précisent : le logiciel de ST le règle lui-même). Fin de ligne : retour chariot (`<CR>`).
+- [ ] À défaut, prévoir un terminal série (PuTTY, Tera Term, ou le moniteur série de STM32CubeIDE) réglé à **115 200 bauds** (débit par défaut du module, commande `AT+IPR`), **sans contrôle de flux** (Design Guide), 8 bits, sans parité, 1 bit de stop ⚠️ (réglage courant, que la documentation ne précise pas : le logiciel de ST le règle lui-même). Fin de ligne : retour chariot (`<CR>`).
 - [ ] Demander à Mathieu l'adresse et le port de test du broker Azure ; à défaut, prévoir un broker public de test pour un seul message sans donnée personnelle.
 - [ ] **SIM Wireless Logic** : vérifier sur leur plateforme de gestion que la SIM est **activée**, demander l'**APN** à utiliser et **confirmer que la SIM a une couverture NB-IoT en France** (et sur quel réseau). Sans ça, l'attache échouera quoi qu'on fasse.
 - [ ] Dans la GUI de ST, vérifier s'il existe un **firmware plus récent** pour le module (panneau de mise à jour) et noter la version installée.
 - [ ] Configurer le terminal pour **enregistrer toute la session dans un fichier journal** : c'est la preuve des tests pour le rapport (penser à y masquer IMSI, ICCID et IMEI avant de le partager).
-- [ ] Documents encore à récupérer (installés avec la GUI) : le **manuel de la carte EVKITST87M01-2** (cavaliers, choix de l'alimentation, signification des LED) et la note **ST87MXX_TCP_UDP_IP** (configuration de la couche IP, à laquelle renvoie la note MQTT).
+- [ ] Document encore à récupérer (installé avec la GUI) : le **manuel de la carte EVKITST87M01-2** (cavaliers, choix de l'alimentation, LED propres à la carte).
 
 ## 1. Montage
 
@@ -56,14 +56,29 @@ Si le module ne répond plus en cours de test : il dort probablement. Un caract�
 
 | Étape | Commande | Réponse attendue | Si ça échoue |
 |---|---|---|---|
-| 4.0 | `AT#BANDSEL?` | `#BANDSEL: …` avec au moins les bandes **8 et 20** (bandes NB-IoT européennes) | Comparer avec `AT#BANDSEL=?` ; ne modifier qu'en cas d'échec d'attache, après avoir demandé à Wireless Logic les bandes utilisées en France (changement pris en compte après `AT#RESET=1`) |
+| 4.0 | `AT#BANDSEL?` | `#BANDSEL: …` avec au moins les bandes **8 et 20** (bandes NB-IoT européennes, certifiées pour le module) | Comparer avec `AT#BANDSEL=?` ; ne modifier qu'en cas d'échec d'attache, après avoir demandé à Wireless Logic les bandes utilisées en France (changement pris en compte après `AT#RESET=1`) |
 | 4.1 | `AT+CFUN?` | `+CFUN: 1` (radio active) | Envoyer `AT+CFUN=1` |
 | 4.2 | `AT+CEREG=2` | `OK` (active le détail de l'enregistrement) | — |
 | 4.3 | `AT+CEREG?` à répéter toutes les 10 à 30 s | `+CEREG: 2,1,…` ou **`+CEREG: 2,5,…`** | Voir le tableau ci-dessous |
 | 4.4 | `AT+COPS?` | Le réseau trouvé (nom ou code PLMN) | — |
-| 4.5 | `AT+CGDCONT?` | Le contexte de données **0** (créé automatiquement au démarrage) et son APN | Si l'APN est vide ou faux : demander l'APN à Wireless Logic, puis `AT+CFUN=0`, configurer avec `AT+CGDCONT`, `AT#RESET=1` (sauvegarde et redémarrage) |
-| 4.6 | `AT+CGPADDR` | Une adresse IP | Pas d'adresse : contexte de données non actif, revoir l'APN |
-| 4.7 | Attendre `+CGEV: ME PDN ACT 0` (connexion de données établie, selon la note MQTT ; si ce message n'apparaît jamais, activer les notifications avec `AT+CGEREP=1`), puis lire `AT#IPCFG?` | Pile IPv4 active (`#IPCFG: 5,…` : le **contexte IP 5** est celui utilisé par défaut) | Si la pile IP reste inactive : configuration manuelle avec `AT#IPCFG` (voir la note ST87MXX_TCP_UDP_IP) |
+| 4.5 | `AT+CGCONTRDP=5` | `+CGCONTRDP: 5,5,"<APN>","<adresse>","","<DNS 1>","<DNS 2>",…` : l'APN et les serveurs DNS donnés par le réseau sur le **contexte 5** (celui utilisé par défaut) | Si l'APN est vide ou faux : demander l'APN à Wireless Logic, puis `AT+CFUN=0`, configurer avec `AT+CGDCONT`, `AT#RESET=1` (sauvegarde et redémarrage) |
+| 4.6 | `AT+CGPADDR=5` | `+CGPADDR: 5,"<adresse IPv4>"[,"<adresse IPv6>"]` | Pas d'adresse : contexte de données non actif, revoir l'APN |
+| 4.7 | Attendre `+CGEV: ME PDN ACT 5` puis `#IPCFG: 5,0,1` (si ces messages n'apparaissent jamais : `AT+CGEREP=1`) ; ou lire `AT#IPCFG?` | Pile IPv4 configurée automatiquement sur le contexte 5 (IP automatique activée par défaut) | Sinon, configuration manuelle : `AT#IPCFG=5,0,<adresse lue en 4.6>` → « IP Network is Up for context 5 » |
+| 4.8 | `AT#IPPING=5,8.8.8.8` | `#IPPING: …` avec les temps de réponse | Premier test d'Internet, très léger en données. Pas de réponse : pas d'accès Internet (APN, offre de la SIM) |
+
+**Ce qu'on doit voir au démarrage** (exemple de la note TCP_UDP_IP, sans aucune commande) :
+
+```
+#SIMST: 1              <- SIM détectée
++CEREG: 2              <- recherche du réseau
++CEREG: 0              <- recherche interrompue (normal)
++CEREG: 2              <- nouvelle recherche
++CGEV: ME PDN ACT 5    <- connexion de données établie (contexte 5)
++CEREG: 1              <- enregistré
+#IPCFG: 5,0,1          <- adresse IP configurée automatiquement
+```
+
+**Repère visuel :** sur le module, LED1 éteinte = modem en veille, clignotement lent = au repos, **clignotement rapide = attaché au réseau** (Design Guide).
 
 **Lire le deuxième chiffre de `+CEREG`** (norme 3GPP) :
 
@@ -149,6 +164,17 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 ## Pour plus tard : mesurer la consommation
 
 Quand le module entre en veille, il affiche l'énergie consommée, par exemple `#ENERGY: 43.6` puis `#SLEEP PSM 3187.8s` (exemple du manuel, `AT#SLEEPMODE`). Ces messages serviront aux mesures PSM / eDRX de S5–S6 : penser à les relever dans le journal.
+
+Valeurs de référence du Design Guide (2,5 V, conditions radio idéales), à comparer à nos mesures :
+
+| État | Consommation typique |
+|---|---|
+| Éteint (`AT#PWROFF`) | 0,5 µA |
+| PSM | 1,2 à 1,8 µA |
+| Repos en eDRX (cycle de 655 s à 20 s) | 60 à 166 µA |
+| Émission, bande basse (B8, B20), puissance max | 385 mA en moyenne |
+
+Sensibilité typique en réception : environ −116 dBm en bandes 8 et 20, sans répétition (le NB-IoT descend plus bas grâce aux répétitions).
 
 ## Économiser les 50 Mo de la SIM
 
