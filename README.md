@@ -38,7 +38,8 @@ L'IA est répartie en deux niveaux :
 | Format des messages montants et descendants | Bastian, avec A et B | Proposé : [docs/protocole_messages.md](docs/protocole_messages.md) |
 | Interface TIC Linky vers STM32 | Bastian | Schéma proposé : [docs/interface_tic.md](docs/interface_tic.md) |
 | Capteur de courant | Bastian | À intégrer |
-| Module NB-IoT ST87M01 | Merveil | À intégrer dans [`firmware/`](firmware/) |
+| Étude des protocoles et choix du NB-IoT | Merveil | Fait : [docs/etude_protocoles_nbiot.md](docs/etude_protocoles_nbiot.md), [ADR 0002](docs/adr/0002-nbiot-liaison-boitier-serveur.md), [hébergement joignable depuis le NB-IoT](docs/hebergement_joignabilite.md) |
+| Module NB-IoT ST87M01 | Merveil | Procédure de test du kit prête : [firmware/tests_st87m01/jour1_kit.md](firmware/tests_st87m01/jour1_kit.md) ; tests dès réception du kit (S3) |
 | Broker MQTT TLS et Home Assistant | Mathieu | À intégrer dans [`cloud/`](cloud/) et [`homeassistant/`](homeassistant/) |
 
 ## Résultats principaux
@@ -77,7 +78,7 @@ Sur un an, l'analyse des habitudes conseille l'offre Tempo à ce foyer (environ 
 | [`firmware/`](firmware/) | Code de la carte et tests du ST87M01 |
 | [`cloud/`](cloud/) | Configuration du broker MQTT (TLS, droits d'accès) |
 | [`homeassistant/`](homeassistant/) | Configuration MQTT et tableaux de bord |
-| [`docs/`](docs/) | Format des messages, interface TIC, décisions techniques ([`docs/adr/`](docs/adr/)), figures |
+| [`docs/`](docs/) | Format des messages, interface TIC, étude des protocoles, hébergement, décisions techniques ([`docs/adr/`](docs/adr/)), figures |
 | [`data/`](data/) | Où placer les données UK-DALE (non versionnées) |
 | [`tests/`](tests/) | Tests automatiques de l'EMS serveur |
 
