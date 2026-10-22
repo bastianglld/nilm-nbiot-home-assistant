@@ -67,7 +67,7 @@ Les règles simples atteignent 74 à 84 % de l'économie maximale calculée par 
 ## Ce qui reste à faire
 
 - Brancher l'enregistreur sur le vrai broker (adresse, identifiants, TLS) avec Mathieu.
-- Valider avec Merveille le décodage du message de planning sur la carte et la commande du relais.
+- Valider avec Merveil le décodage du message de planning sur la carte et la commande du relais.
 - Estimer l'état de la cuve à minuit avec une vraie mesure (fixé à 60 % pour l'instant).
 - Ajouter les radiateurs et le chauffe-eau au NILM, ou les mesurer directement, pour des conseils plus complets.
 

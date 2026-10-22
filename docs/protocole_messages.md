@@ -1,6 +1,6 @@
 # Format des messages MQTT
 
-Proposition de la partie C, à valider avec Mathieu (broker, Home Assistant) et Merveille (carte, ST87M01). Les messages de la carte et du planning sont courts : ils doivent tenir dans la limite de 50 caractères par message retenue pour le ST87M01, et chaque octet envoyé en NB-IoT coûte de l'énergie.
+Proposition de la partie C, à valider avec Mathieu (broker, Home Assistant) et Merveil (carte, ST87M01). Les messages de la carte et du planning sont courts : ils doivent tenir dans la limite de 50 caractères par message retenue pour le ST87M01, et chaque octet envoyé en NB-IoT coûte de l'énergie.
 
 | Sens | Topic | Fréquence | Taille | Producteur, consommateur |
 |---|---|---|---|---|
