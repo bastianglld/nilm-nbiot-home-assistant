@@ -60,4 +60,31 @@ Erreurs volontaires (`--erreurs`) : somme de contrôle fausse, caractère modifi
 
 La somme de contrôle de la TIC ne tient que sur 6 bits : un caractère remplacé par un autre dont le code diffère d'un multiple de 64 passe inaperçu. C'est une limite du protocole ; le simulateur n'injecte pas ce cas.
 
-Tests : `python -m unittest tests.test_simulateur_tic` depuis la racine du dépôt.
+## Décodeur en C pour la carte
+
+| Fichier | Rôle |
+|---|---|
+| [`tic_decodeur.h`](tic_decodeur.h), [`tic_decodeur.c`](tic_decodeur.c) | Décodeur portable : octet par octet, trames, sommes de contrôle, modes standard et historique détectés automatiquement |
+| [`test_pc.c`](test_pc.c) | Test sur PC avec les fichiers du simulateur, sans carte |
+| [`integration_stm32.c`](integration_stm32.c) | Blocs à coller dans le `main.c` de STM32CubeIDE (réception par interruption) |
+
+Valeurs disponibles après chaque trame valide : `papp_va` (SINSTS ou PAPP), `index_total_wh`, `irms_a`, `urms_v`, `pref_kva`, `tarif`, `horodate`, `stge`, `couleur_jour`, `couleur_demain`, et des compteurs de diagnostic (`trames_ok`, `trames_erreur`, `trames_interrompues`, `lignes_rejetees`).
+
+Test sur PC :
+
+```bash
+python simulateur_tic.py envoyer --sortie trames.bin --nb 20 --erreurs 10
+gcc -Wall -Wextra -std=c11 -o test_pc test_pc.c tic_decodeur.c && ./test_pc trames.bin
+```
+
+Test sur la carte :
+
+1. Dans STM32CubeIDE, régler l'USART relié au ST-LINK (voir l'en-tête de `integration_stm32.c`), copier le décodeur dans `Core/`, coller les blocs dans `main.c`.
+2. Lancer en débogage et ajouter dans « Live Expressions » : `nb_octets_recus`, `tic.papp_va`, `tic.trames_ok`, `tic.lignes_rejetees`, `tic.couleur_jour`.
+3. Sur le PC, envoyer des trames sur le port du ST-LINK (`ls /dev/tty.usbmodem*` sur Mac) :
+   `python simulateur_tic.py envoyer --port /dev/tty.usbmodemXXXX --offre tempo --couleur ROUGE --afficher`
+4. `tic.papp_va` doit suivre la puissance affichée par le simulateur. Avec `--erreurs 20`, `tic.lignes_rejetees` augmente et `tic.papp_va` reste juste.
+
+Si `nb_octets_recus` reste à 0 : mauvais USART ou port. S'il augmente sans trame valide : vérifier 9 600 bauds, mot de 8 bits avec parité paire, ou relancer le simulateur avec `--8n1`.
+
+Tests : `python -m unittest tests.test_simulateur_tic tests.test_decodeur_tic_c` depuis la racine du dépôt.
