@@ -7,6 +7,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Données et secrets
+firmware/tests_st87m01/journaux/
 data/raw/
 *.env
 secrets/
