@@ -8,6 +8,7 @@ Responsable : Merveil Joresse N'Goulou Wamena (B) pour le module NB-IoT ST87M01,
 |---|---|---|
 | [`tests_st87m01/`](tests_st87m01/) | Procédure du premier jour du kit ([`jour1_kit.md`](tests_st87m01/jour1_kit.md)), script qui l'automatise depuis le PC ([`test_jour1.py`](tests_st87m01/test_jour1.py)) et faux module pour l'essayer sans le kit | Merveil (B) |
 | [`tic/`](tic/) | Simulateur TIC Linky pour tester le décodeur de la carte sans compteur | Bastian (C) |
+| [`nilm_carte/`](nilm_carte/) | Entrées et message du modèle NILM sur la carte (moyenne par minute, fenêtre de 272 minutes, Wh par appareil), référence PC pour comparer | Bastian (C) |
 
 ## Ce qui arrive
 
