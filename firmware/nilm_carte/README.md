@@ -17,6 +17,7 @@ La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puis
 |---|---|
 | [`nilm_flux.h`](nilm_flux.h), [`nilm_flux.c`](nilm_flux.c) | Moyenne par minute, historique de 272 minutes, entrées (kW, sin et cos de l'heure), sortie -> Wh et message. Portable, sans HAL |
 | [`attendu_nilm.py`](attendu_nilm.py) | Messages attendus sur PC pour une journée UK-DALE (même modèle, onnxruntime), et comparaison avec ce qu'a envoyé la carte |
+| [`nilm_ia.h`](nilm_ia.h), [`nilm_ia.c`](nilm_ia.c) | Appel du modèle généré par ST Edge AI (API legacy, Cortex-M55) : conversion float <-> int8 avec l'échelle lue dans le code généré, durée du calcul |
 | [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests |
 
 Réglages (identiques à `nilm_meta.json`) : fenêtre de 272 minutes, une fenêtre toutes les 15 minutes, minutes 130 à 144 retenues. Les fenêtres finissent à hh:07, :22, :37 et :52 pour que le quart d'heure retenu commence pile à hh:00, :15, :30 ou :45 (retard de 2 h 07 à 2 h 22). Une minute sans mesure est mise à 0 sur les 3 entrées, comme à l'entraînement.
@@ -34,6 +35,8 @@ $XC/Utilities/macarm/stedgeai generate --target stm32n6 --c-api legacy \
     --inputs-ch-position chfirst --outputs-ch-position chfirst \
     -o ~/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_ia
 ```
+
+Résultat (ST Edge AI Core 2.2) : 6,2 M MACC, poids 76 Ko, activations 59 Ko, **entrée et sortie en int8** (entrée : échelle 0,0252, zéro -88 ; sortie : échelle 0,1626, zéro 37). Intégration dans le projet CubeIDE : fichiers `network*.c/h` dans `FSBL/Core`, en-têtes `Middlewares/ST/AI/Inc` et bibliothèque `NetworkRuntime1020_CM55_GCC` ajoutés dans les réglages du projet, pile portée à 16 Ko.
 
 ## Essai avec le simulateur
 
