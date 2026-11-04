@@ -21,7 +21,11 @@ from pathlib import Path
 import numpy as np
 
 ICI = Path(__file__).resolve().parent
-EXPORT = ICI.parents[1] / "nilm" / "notebooks" / "export_s7"
+# dossier du modèle : dans le dépôt, ou à côté du simulateur sur le Mac (Projet/Modele_IA/export_s7)
+EXPORT = next((d for d in (ICI.parents[1] / "nilm" / "notebooks" / "export_s7",
+                           ICI.parent.parent / "Modele_IA" / "export_s7",
+                           Path.home() / "Desktop/MASTER/Projet/Modele_IA/export_s7") if (d / "nilm_meta.json").exists()),
+              ICI.parents[1] / "nilm" / "notebooks" / "export_s7")
 META = json.loads((EXPORT / "nilm_meta.json").read_text())
 WIN, STEP, RF = META["fenetre_min"], META["pas_min"], META["contexte_min"]
 SL = slice(*META["minutes_retenues"])                    # 130 à 144
