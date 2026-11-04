@@ -7,6 +7,7 @@ Partie B (Merveil). Tout ce qu'il faut pour le premier jour du kit EVKITST87M01-
 | [`jour1_kit.md`](jour1_kit.md) | La procédure pas à pas : montage, commandes AT, réponses attendues, problèmes fréquents |
 | [`test_jour1.py`](test_jour1.py) | La même procédure, automatisée : envoie les commandes, vérifie les réponses, écrit le journal et la fiche de relevé |
 | [`faux_st87m01.py`](faux_st87m01.py) | Un faux module qui répond comme le ST87M01, pour essayer le script sans le kit |
+| [`budget_donnees.py`](budget_donnees.py) | Estimation des données consommées par jour selon la stratégie d'envoi, comparée au forfait de la SIM (résultats : [`docs/budget_donnees_sim.md`](../../docs/budget_donnees_sim.md)) |
 
 Tests automatiques : [`../../tests/test_jour1_st87m01.py`](../../tests/test_jour1_st87m01.py) (lancés par l'intégration continue).
 
