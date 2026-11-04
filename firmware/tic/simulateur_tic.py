@@ -344,7 +344,10 @@ def cmd_envoyer(a):
         """Affiche les lignes renvoyées par la carte sur le même port (ex. « NILM 1615;21;48;0;0;310 »)."""
         if not (port and a.retour) or not port.in_waiting:
             return
-        recu.extend(port.read(port.in_waiting))
+        bloc = port.read(port.in_waiting)
+        if a.brut:
+            print(f"carte (brut, {len(bloc)} octets) > {bloc!r}", file=sys.stderr)
+        recu.extend(bloc)
         while b"\n" in recu:
             ligne, _, reste = bytes(recu).partition(b"\n")
             recu[:] = reste
@@ -470,6 +473,7 @@ def main(argv=None):
     e.add_argument("--accel", type=float, default=1.0, help="accélération du temps simulé (60 = 1 min par trame)")
     e.add_argument("--retour", action="store_true", help="afficher les lignes renvoyées par la carte (messages NILM)")
     e.add_argument("--journal", help="avec --retour : enregistrer ces lignes dans un fichier (pour attendu_nilm.py)")
+    e.add_argument("--brut", action="store_true", help="avec --retour : afficher aussi les octets bruts reçus de la carte")
     e.add_argument("--nb", type=int, default=None, help="nombre de trames (par défaut : sans fin)")
     e.add_argument("--erreurs", type=float, default=0.0, help="pourcentage de trames volontairement abîmées")
     e.add_argument("--graine", type=int, default=0)
