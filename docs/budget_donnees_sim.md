@@ -49,7 +49,7 @@ Avec une publication toutes les 15 minutes, un keep-alive de 900 s ou plus n'env
 | Question | Où | Tâche |
 |---|---|---|
 | ~~Le ST87M01 sait-il reprendre une session TLS ?~~ **Oui**, activé par défaut (paramètre `<enable_resumption>` à la création du socket TLS) ; à confirmer sur le kit en comparant la taille de deux connexions | Assistant ST, puis essai | B-28 |
-| Combien pèse vraiment la poignée de main avec le certificat du broker de Mathieu (un certificat ECDSA, ou une chaîne) ? | Journal du module ou capture côté broker | B-28, B-29 |
+| ~~Le broker présente-t-il un seul certificat ECDSA ?~~ **Non** (vérifié le 4 nov avec `openssl s_client`) : certificat ECDSA P-256 de Let's Encrypt, mais le broker envoie **une chaîne de 4 certificats** (broker → YE2 → Root YE → ISRG Root X2 → ISRG Root X1). Poignée de main complète ≈ 3 ko au lieu de 1 : la stratégie C passerait de 31 à **52 %** du forfait, A de 96 à 180 % ; D (avec reprise) ne change presque pas. À demander à Mathieu : n'envoyer que le certificat du broker et YE2 (C à 37 %) | `openssl s_client -showcerts` | B-28 |
 | Comment Wireless Logic compte les données : octets IP dans les deux sens, arrondi par session ? | Contrat ou support Wireless Logic | B-22 |
 | Au bout de combien de temps le NAT de l'opérateur coupe une connexion TCP inactive ? | Essai sur le kit avec des keep-alive de 300, 900 et 1 200 s | B-29 |
 | Une connexion TCP / MQTT ouverte survit-elle à la veille PSM du module ? (l'assistant ST n'a pas la réponse) | Essai sur le kit | B-29 |
