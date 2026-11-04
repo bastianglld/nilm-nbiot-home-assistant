@@ -7,5 +7,6 @@ Ce dossier accueillera le code de la NUCLEO-N657X0-Q et les tests du module NB-I
 - commandes AT et scripts de test du ST87M01 (attachement au réseau, envoi MQTT) ;
 - acquisition de la mesure, par Bastian (capteur de courant et prise TIC, voir [`../docs/interface_tic.md`](../docs/interface_tic.md)) ;
 - [`tic/`](tic/) : simulateur TIC Linky pour tester le décodeur de la carte sans compteur ;
+- [`mesure_vi/`](mesure_vi/) : calcul de Vrms, Irms, P, S et facteur de puissance à partir de l'ADC (pince et adaptateur secteur), test au GBF ;
 - appel du modèle NILM toutes les 15 minutes (modèle int8 et paramètres dans [`../nilm/notebooks/export_s7/`](../nilm/notebooks/export_s7/)) ;
 - envoi des mesures et décodage du planning reçu (formats dans [`../docs/protocole_messages.md`](../docs/protocole_messages.md)).
