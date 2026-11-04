@@ -12,12 +12,28 @@ La composante continue (point milieu VMID) est retirée par le calcul : `Vrms² 
 
 ## Entrées de la NUCLEO-N657X0-Q
 
-| Connecteur | Broche | Voie ADC | Signal |
-|---|---|---|---|
-| A1 | PA9 | ADC1_INP10 | courant (pince) |
-| A2 | PA10 | ADC1_INP11 | tension (adaptateur secteur) |
+| Connecteur | Broche | Voie ADC | Signal | Plage sur le connecteur |
+|---|---|---|---|---|
+| A0 (CN4) | PA8 | ADC1 canal 5 | courant (pince) | 0 à 3,3 V |
+| A1 (CN4) | PA9 | ADC1 canal 10 | tension (adaptateur secteur) | 0 à 3,3 V |
 
-L'ADC du STM32N6 accepte 1,8 V au plus. Sur cette NUCLEO, au moins l'entrée A5 passe par un suiveur et un pont de rapport 0,54 qui permettent jusqu'à 3,3 V sur le connecteur (réponse ST sur le forum, schéma MB1940). Le premier test au GBF vérifie si A1 et A2 ont le même pont : il décide si le point milieu doit être à 1,65 V ou à 0,9 V.
+D'après le manuel UM3417 (table 17), chaque trou A0 à A5 est relié à deux broches : une entrée ADC derrière un ampli qui ramène 0..3,3 V à 0..1,8 V (rapport mesuré 0,54), et une broche numérique en direct. Le point milieu des capteurs est donc à **1,65 V** (deux résistances de 10 kΩ depuis le 3V3).
+
+**Piège du STM32N6 : l'isolation RIF.** Au démarrage, les broches sont « sécurisées » mais l'ADC12 ne l'est pas : l'ADC ne voit alors aucune broche et lit environ 1 200 sur tous les canaux, même une broche reliée au GND. Il faut donner aux broches le même attribut que l'ADC (`HAL_GPIO_ConfigPinAttributes(GPIOA, GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_NSEC | GPIO_PIN_NPRIV)`), ou rendre les deux sécurisés comme dans les exemples d'ST.
+
+Autres réglages trouvés sur carte : Sampling Time de 1 499,5 cycles (sinon le rang 1 est perdu en interruption), horloge ADC divisée par 4 (50 MHz), Prescaler de TIM6 à 99 pour 4 kHz. Détails dans [`integration_stm32.c`](integration_stm32.c).
+
+## Validation sur carte (4 novembre 2026)
+
+GBF : sinus 50 Hz, 1 Vpp, offset 1,65 V, sortie High Z.
+
+| Montage | Vrms (A1) | Irms (A0) | fp | Cadence |
+|---|---|---|---|---|
+| A0 seul | 0,002 V | 0,370 V | - | 4 000 Hz |
+| A1 seul | 0,370 V | 0,001 V | - | 4 000 Hz |
+| A0 et A1 reliés | 0,370 V | 0,370 V | 0,9999 | 4 000 Hz |
+
+Les deux voies concordent à 0,05 % près. L'écart de 4,6 % avec les 0,354 V théoriques est commun aux deux voies (amplitude réelle du GBF ou gain exact de l'ampli) : il se corrige par étalonnage contre un multimètre.
 
 ## Test sur PC
 
@@ -29,12 +45,10 @@ gcc -Wall -Wextra -std=c11 -o test_pc test_pc.c mesure_vi.c -lm
 
 ## Test sur la carte avec un GBF (avant d'avoir la pince)
 
-Sortie du GBF en mode « High Z », vérifiée à l'oscilloscope avant de brancher. Masse du GBF sur une broche GND de la carte, signal sur A1 et A2.
+Sortie du GBF en mode « High Z », réglage vérifié à l'oscilloscope **avant** de brancher (rester entre 0 et 3,3 V). Masse du GBF sur une boucle GND de la carte, signal sur A0 et/ou A1.
 
-1. **Détection du pont, signal sans risque** : sinus 50 Hz, 1 Vpp, offset 0,9 V (le signal reste entre 0,4 et 1,4 V). Lire `mes.v_moy_brut` :
-   - environ 1 100 : pont de 0,54 présent, le connecteur accepte 0 à 3,3 V, point milieu à 1,65 V ;
-   - environ 2 050 : pas de pont, rester entre 0 et 1,8 V, point milieu à 0,9 V, et mettre `RAPPORT_CARTE` à 1.0f.
-2. **Valeurs efficaces** : avec `K_V = K_I = V_CONNECTEUR`, `mes.vrms` et `mes.irms` doivent valoir 0,354 V (1 Vpp), `mes.fp` doit valoir 1. Comparer au multimètre ou à l'oscilloscope.
+1. **Contrôle de la mesure** : `cadence_hz` ≈ 4 000 et `nb_rang1` qui suit `nb_echantillons`.
+2. **Valeurs efficaces** : sinus 50 Hz, 1 Vpp, offset 1,65 V. `mes.vrms` et `mes.irms` ≈ 0,354 V, `mes.fp` ≈ 1 avec A0 et A1 reliés. Comparer au multimètre (V~).
 3. **Déphasage** (GBF à deux voies, même fréquence, voie 2 déphasée de 60°) : `mes.fp` ≈ 0,5.
 4. **Saturation** : `mes.v_min`/`mes.v_max` ne doivent jamais atteindre 0 ou 4095.
 
