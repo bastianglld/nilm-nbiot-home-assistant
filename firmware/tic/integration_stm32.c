@@ -1,46 +1,53 @@
 /*
- * Intégration du décodeur TIC sur la NUCLEO-N657X0-Q (STM32CubeIDE, HAL).
+ * Intégration du décodeur TIC sur la NUCLEO-N657X0-Q (STM32CubeMX + STM32CubeIDE, HAL).
  * Ce fichier n'est pas à compiler tel quel : chaque bloc est à coller dans la section
- * « USER CODE » indiquée du main.c généré par STM32CubeIDE.
+ * « USER CODE » indiquée du main.c généré (projet FSBL).
  *
- * Réglages dans le .ioc (USART relié au ST-LINK, probablement USART1 : PE5 TX / PE6 RX) :
- *   Mode Asynchronous ; Baud Rate 9600 (1200 en mode historique) ;
- *   Word Length 8 Bits (including Parity) ; Parity Even ; Stop Bits 1 ;
- *   NVIC Settings : cocher « USART1 global interrupt ».
- * Copier tic_decodeur.h dans Core/Inc et tic_decodeur.c dans Core/Src.
+ * Sur cette carte, le port série du ST-LINK (USART1, PE5/PE6) est géré par le BSP sous le nom COM1 :
+ * dans CubeMX, catégorie Bsp > NUCLEO-N657X0-Q, contexte FSBL, case « Virtual Com Port » cochée.
+ * CubeMX l'initialise en 115200 bauds 8N1 ; on le réinitialise ici au format TIC :
+ * 9 600 bauds (1 200 en mode historique), 7 bits de données + parité paire = mot de 8 bits, 1 stop.
+ *
+ * Pour ce premier test, la réception se fait par scrutation dans la boucle principale :
+ * pas d'interruption à configurer. À 9 600 bauds (960 octets/s), la boucle suit sans problème.
+ *
+ * Copier tic_decodeur.h dans FSBL/Core/Inc et tic_decodeur.c dans FSBL/Core/Src.
  */
 
 /* ===== USER CODE BEGIN Includes ===== */
 #include "tic_decodeur.h"
 
 /* ===== USER CODE BEGIN PV ===== */
-tic_t tic;                       /* à surveiller dans « Live Expressions » pendant le débogage */
-static uint8_t octet_rx;
-volatile uint32_t nb_octets_recus;   /* sert à vérifier que des octets arrivent */
+tic_t tic;                               /* à surveiller dans « Live Expressions » */
+volatile uint32_t nb_octets_recus;       /* vérifie que des octets arrivent */
+volatile uint32_t nb_erreurs_uart;       /* erreurs de parité, de trame ou débordements */
 
-/* ===== USER CODE BEGIN 2 (après les MX_..._Init) ===== */
+/* ===== USER CODE BEGIN BSP (juste après BSP_COM_Init(COM1, ...)) ===== */
+/* Si la section BSP n'existe pas dans ton main.c, mets ce bloc dans USER CODE BEGIN 2,
+   à condition qu'il soit placé APRÈS l'appel à BSP_COM_Init. */
+BSP_COM_DeInit(COM1);
+BspCOMInit.BaudRate   = 9600;
+BspCOMInit.WordLength = COM_WORDLENGTH_8B;     /* 7 bits de données + 1 bit de parité */
+BspCOMInit.StopBits   = COM_STOPBITS_1;
+BspCOMInit.Parity     = COM_PARITY_EVEN;
+BspCOMInit.HwFlowCtl  = COM_HWCONTROL_NONE;
+if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+    Error_Handler();
+}
 tic_init(&tic);
-HAL_UART_Receive_IT(&huart1, &octet_rx, 1);
 
-/* ===== USER CODE BEGIN 4 ===== */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART1) {
-        nb_octets_recus++;
-        if (tic_octet(&tic, octet_rx) == TIC_TRAME_OK) {
-            /* une trame complète et valide : tic.papp_va contient la puissance apparente (VA) */
-            /* témoin visuel facultatif : remplacer par le nom de la LED du .ioc, ou supprimer */
-            /* HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin); */
-        }
-        HAL_UART_Receive_IT(&huart1, &octet_rx, 1);
+/* ===== USER CODE BEGIN WHILE (dans la boucle while (1)) ===== */
+uint8_t octet;
+HAL_StatusTypeDef st = HAL_UART_Receive(&hcom_uart[COM1], &octet, 1, 5);
+if (st == HAL_OK) {
+    nb_octets_recus++;
+    if (tic_octet(&tic, octet) == TIC_TRAME_OK) {
+        BSP_LED_Toggle(LED_GREEN);            /* la LED verte change d'état à chaque trame valide */
     }
+} else if (st == HAL_ERROR) {
+    nb_erreurs_uart++;                         /* la ligne concernée sera rejetée par la somme de contrôle */
+    __HAL_UART_CLEAR_FLAG(&hcom_uart[COM1], UART_CLEAR_PEF | UART_CLEAR_FEF | UART_CLEAR_NEF | UART_CLEAR_OREF);
+    hcom_uart[COM1].ErrorCode = HAL_UART_ERROR_NONE;
+    hcom_uart[COM1].RxState = HAL_UART_STATE_READY;
 }
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    /* erreur de parité, de trame ou débordement : on relance simplement la réception
-       (une ligne abîmée sera de toute façon rejetée par la somme de contrôle) */
-    if (huart->Instance == USART1) {
-        HAL_UART_Receive_IT(&huart1, &octet_rx, 1);
-    }
-}
+/* HAL_TIMEOUT : aucun octet pendant 5 ms, on recommence simplement */

@@ -79,8 +79,9 @@ gcc -Wall -Wextra -std=c11 -o test_pc test_pc.c tic_decodeur.c && ./test_pc tram
 
 Test sur la carte :
 
-1. Dans STM32CubeIDE, régler l'USART relié au ST-LINK (voir l'en-tête de `integration_stm32.c`), copier le décodeur dans `Core/`, coller les blocs dans `main.c`.
-2. Lancer en débogage et ajouter dans « Live Expressions » : `nb_octets_recus`, `tic.papp_va`, `tic.trames_ok`, `tic.lignes_rejetees`, `tic.couleur_jour`.
+1. Dans STM32CubeMX (carte NUCLEO-N657X0-Q, « Secure domain only »), catégorie **Bsp** > NUCLEO-N657X0-Q : contexte FSBL et « Virtual Com Port » cochés. Le port du ST-LINK (USART1, PE5/PE6) est géré par le BSP sous le nom `COM1`. Générer le code pour STM32CubeIDE et l'importer.
+   Copier le décodeur dans `FSBL/Core/`, coller les blocs de `integration_stm32.c` dans `main.c` : le port est réinitialisé en 9 600 bauds, 8 bits avec parité paire, et lu par scrutation dans la boucle principale.
+2. Lancer en débogage et ajouter dans « Live Expressions » : `nb_octets_recus`, `nb_erreurs_uart`, `tic.papp_va`, `tic.trames_ok`, `tic.lignes_rejetees`, `tic.couleur_jour`. La LED verte change d'état à chaque trame valide.
 3. Sur le PC, envoyer des trames sur le port du ST-LINK (`ls /dev/tty.usbmodem*` sur Mac) :
    `python simulateur_tic.py envoyer --port /dev/tty.usbmodemXXXX --offre tempo --couleur ROUGE --afficher`
 4. `tic.papp_va` doit suivre la puissance affichée par le simulateur. Avec `--erreurs 20`, `tic.lignes_rejetees` augmente et `tic.papp_va` reste juste.
