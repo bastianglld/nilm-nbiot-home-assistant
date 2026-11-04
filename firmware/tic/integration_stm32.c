@@ -22,9 +22,9 @@ tic_t tic;                               /* à surveiller dans « Live Expressio
 volatile uint32_t nb_octets_recus;       /* vérifie que des octets arrivent */
 volatile uint32_t nb_erreurs_uart;       /* erreurs de parité, de trame ou débordements */
 
-/* ===== USER CODE BEGIN BSP (juste après BSP_COM_Init(COM1, ...)) ===== */
-/* Si la section BSP n'existe pas dans ton main.c, mets ce bloc dans USER CODE BEGIN 2,
-   à condition qu'il soit placé APRÈS l'appel à BSP_COM_Init. */
+/* ===== USER CODE BEGIN WHILE (avant « while (1) ») ===== */
+/* Ce bloc doit venir APRÈS BSP_COM_Init(COM1, ...) : USER CODE BEGIN 2 est trop tôt
+   dans le main.c généré pour cette carte, USER CODE BEGIN WHILE convient. */
 BSP_COM_DeInit(COM1);
 BspCOMInit.BaudRate   = 9600;
 BspCOMInit.WordLength = COM_WORDLENGTH_8B;     /* 7 bits de données + 1 bit de parité */
@@ -36,7 +36,7 @@ if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
 }
 tic_init(&tic);
 
-/* ===== USER CODE BEGIN WHILE (dans la boucle while (1)) ===== */
+/* ===== USER CODE BEGIN 3 (dans la boucle while (1)) ===== */
 uint8_t octet;
 HAL_StatusTypeDef st = HAL_UART_Receive(&hcom_uart[COM1], &octet, 1, 5);
 if (st == HAL_OK) {

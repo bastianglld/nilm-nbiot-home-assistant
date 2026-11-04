@@ -66,7 +66,7 @@ La somme de contrôle de la TIC ne tient que sur 6 bits : un caractère remplac�
 |---|---|
 | [`tic_decodeur.h`](tic_decodeur.h), [`tic_decodeur.c`](tic_decodeur.c) | Décodeur portable : octet par octet, trames, sommes de contrôle, modes standard et historique détectés automatiquement |
 | [`test_pc.c`](test_pc.c) | Test sur PC avec les fichiers du simulateur, sans carte |
-| [`integration_stm32.c`](integration_stm32.c) | Blocs à coller dans le `main.c` de STM32CubeIDE (réception par interruption) |
+| [`integration_stm32.c`](integration_stm32.c) | Blocs à coller dans le `main.c` de STM32CubeIDE (réception par scrutation) |
 
 Valeurs disponibles après chaque trame valide : `papp_va` (SINSTS ou PAPP), `index_total_wh`, `irms_a`, `urms_v`, `pref_kva`, `tarif`, `horodate`, `stge`, `couleur_jour`, `couleur_demain`, et des compteurs de diagnostic (`trames_ok`, `trames_erreur`, `trames_interrompues`, `lignes_rejetees`).
 
@@ -80,7 +80,7 @@ gcc -Wall -Wextra -std=c11 -o test_pc test_pc.c tic_decodeur.c && ./test_pc tram
 Test sur la carte :
 
 1. Dans STM32CubeMX (carte NUCLEO-N657X0-Q, « Secure domain only »), catégorie **Bsp** > NUCLEO-N657X0-Q : contexte FSBL et « Virtual Com Port » cochés. Le port du ST-LINK (USART1, PE5/PE6) est géré par le BSP sous le nom `COM1`. Générer le code pour STM32CubeIDE et l'importer.
-   Copier le décodeur dans `FSBL/Core/`, coller les blocs de `integration_stm32.c` dans `main.c` : le port est réinitialisé en 9 600 bauds, 8 bits avec parité paire, et lu par scrutation dans la boucle principale.
+   Copier le décodeur dans `FSBL/Core/`, coller les blocs de `integration_stm32.c` dans `main.c` (sections Includes, PV, WHILE avant `while (1)`, et 3) : le port est réinitialisé en 9 600 bauds, 8 bits avec parité paire, et lu par scrutation dans la boucle principale.
 2. Lancer en débogage et ajouter dans « Live Expressions » : `nb_octets_recus`, `nb_erreurs_uart`, `tic.papp_va`, `tic.trames_ok`, `tic.lignes_rejetees`, `tic.couleur_jour`. La LED verte change d'état à chaque trame valide.
 3. Sur le PC, envoyer des trames sur le port du ST-LINK (`ls /dev/tty.usbmodem*` sur Mac) :
    `python simulateur_tic.py envoyer --port /dev/tty.usbmodemXXXX --offre tempo --couleur ROUGE --afficher`
