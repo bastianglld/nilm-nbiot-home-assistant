@@ -1,0 +1,46 @@
+# NILM sur la carte (partie C)
+
+Fait tourner le modèle NILM int8 (`nilm/notebooks/export_s7/nilm_int8.onnx`) sur la NUCLEO-N657X0-Q à partir d'une puissance mesurée en continu, et produit le message NB-IoT de 15 minutes (`docs/protocole_messages.md`).
+
+```
+simulateur TIC (journée UK-DALE, 1 minute simulée par seconde)
+  -> décodeur TIC (firmware/tic) : SINSTS + horodate DATE
+  -> nilm_flux : moyenne par minute, 272 dernières minutes, fenêtre prête à hh:07, :22, :37, :52
+  -> modèle (code généré par ST Edge AI, Cortex-M55)
+  -> nilm_flux : énergies du quart d'heure retenu -> « 1615;21;48;0;0;310 »
+  -> renvoyé au PC sur le port du ST-LINK : « NILM 1615;21;48;0;0;310 »
+```
+
+La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puissance par minute (`mes.s_minute`) : il suffira d'appeler `nilm_flux_mesure` avec elle au lieu du TIC.
+
+| Fichier | Rôle |
+|---|---|
+| [`nilm_flux.h`](nilm_flux.h), [`nilm_flux.c`](nilm_flux.c) | Moyenne par minute, historique de 272 minutes, entrées (kW, sin et cos de l'heure), sortie -> Wh et message. Portable, sans HAL |
+| [`attendu_nilm.py`](attendu_nilm.py) | Messages attendus sur PC pour une journée UK-DALE (même modèle, onnxruntime), et comparaison avec ce qu'a envoyé la carte |
+| [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests |
+
+Réglages (identiques à `nilm_meta.json`) : fenêtre de 272 minutes, une fenêtre toutes les 15 minutes, minutes 130 à 144 retenues. Les fenêtres finissent à hh:07, :22, :37 et :52 pour que le quart d'heure retenu commence pile à hh:00, :15, :30 ou :45 (retard de 2 h 07 à 2 h 22). Une minute sans mesure est mise à 0 sur les 3 entrées, comme à l'entraînement.
+
+Test : `python -m unittest tests.test_nilm_flux_c` (le code C donne les mêmes messages que la fenêtre glissante du notebook semaine07, à 1 Wh près, y compris avec plusieurs mesures par minute et un trou de 12 minutes).
+
+## Générer le modèle pour le Cortex-M55
+
+Sans l'option `--st-neural-art`, ST Edge AI génère du code pour le processeur seul (quelques dizaines de ms par calcul, pour un calcul toutes les 15 minutes). Le NPU viendra ensuite.
+
+```bash
+XC=~/STM32Cube/Repository/Packs/STMicroelectronics/X-CUBE-AI/10.2.0
+$XC/Utilities/macarm/stedgeai generate --target stm32n6 --c-api legacy \
+    -m ~/Desktop/MASTER/Projet/Modele_IA/export_s7/nilm_int8.onnx --name network \
+    --inputs-ch-position chfirst --outputs-ch-position chfirst \
+    -o ~/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_ia
+```
+
+## Essai avec le simulateur
+
+```bash
+python simulateur_tic.py envoyer --port /dev/tty.usbmodem102 --ukdale ~/Desktop/MASTER/Projet/Modele_IA/house_1/an1 \
+    --jour 2014-01-15 --accel 60 --retour --journal carte.txt
+python attendu_nilm.py --ukdale ~/Desktop/MASTER/Projet/Modele_IA/house_1/an1 --jour 2014-01-15 --journal carte.txt
+```
+
+Avec `--accel 60`, le simulateur envoie la moyenne de chaque minute UK-DALE (une trame par minute simulée) ; le premier message arrive après 272 trames (environ 4 min 30), puis un toutes les 15 secondes. Choisir un jour de la période de test du modèle (après fin novembre 2013).

@@ -39,6 +39,8 @@ python simulateur_tic.py rejouer --port /dev/tty.usbmodem1103 --fichier linky.bi
 
 `python simulateur_tic.py envoyer -h` liste toutes les options.
 
+Avec `--ukdale` et au moins une minute simulée par trame (`--accel 60`), le simulateur envoie la **moyenne de chaque minute** (comme les données d'entraînement du NILM) au lieu de la valeur ponctuelle. `--retour` affiche les lignes que la carte renvoie sur le même port (messages `NILM ...`), `--journal fichier` les enregistre pour [`../nilm_carte/attendu_nilm.py`](../nilm_carte/attendu_nilm.py).
+
 ## Branchement pour tester le décodeur de la carte
 
 | Montage | Branchement | Côté carte |
