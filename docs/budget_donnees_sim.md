@@ -32,15 +32,15 @@ La mesure elle-même pèse 40 octets ; c'est **l'ouverture de la connexion TLS**
 | E | 1 connexion toutes les 2 h (8 mesures), reprise TLS | 42 | 15 % | 8 Mo |
 | F1 | Connexion gardée, keep-alive 60 s | 327 | **119 %** | 60 Mo |
 | F2 | Connexion gardée, keep-alive 300 s | 71 | 26 % | 13 Mo |
-| F3 | Connexion gardée, keep-alive ≥ 900 s | 28 | 10 % | 5 Mo |
+| F3 | Connexion gardée, keep-alive entre 900 et 3 600 s | 28 | 10 % | 5 Mo |
 | Réf. | Sans TLS (essais seulement), reconnexion toutes les 15 min | 76 | 28 % | 14 Mo |
 
-Avec une publication toutes les 15 minutes, un keep-alive de 900 s ou plus n'envoie aucun PINGREQ : chaque publication remet le compteur à zéro.
+Avec une publication toutes les 15 minutes, un keep-alive de 900 s ou plus n'envoie aucun PINGREQ : chaque publication remet le compteur à zéro. Le module accepte au plus **3 600 s**, et sa valeur **par défaut est de 120 s** (`AT#MQTTCFG`) : laissée telle quelle, une connexion gardée consommerait 177 ko par jour (65 % du forfait). Il faut donc toujours la fixer soi-même.
 
 ## Ce qu'on en retient
 
 - **À éviter : A et F1.** Se reconnecter à chaque mesure consomme presque tout le forfait, sans marge pour les essais ni les erreurs. Un keep-alive court le dépasse.
-- **Stratégie proposée : regrouper les envois, une connexion par heure (C, ou D si le module sait reprendre une session TLS).** Entre 22 et 31 % du forfait, ce qui laisse de la marge pour les semaines d'essais. Le module peut dormir (PSM) entre deux connexions, ce qui économise aussi l'énergie. Le retard ajouté est d'une heure au plus, alors que chaque mesure décrit déjà le quart d'heure d'il y a 2 h 10 : l'EMS n'y perd presque rien. Le planning, publié avec *retain*, arrive à la connexion suivante.
+- **Stratégie proposée : regrouper les envois, une connexion par heure, avec reprise de session TLS (D).** Le module sait reprendre une session TLS, et la reprise est activée par défaut (voir plus bas) ; sans elle, on retombe sur C. Entre 22 et 31 % du forfait, ce qui laisse de la marge pour les semaines d'essais. Le module peut dormir (PSM) entre deux connexions, ce qui économise aussi l'énergie. Le retard ajouté est d'une heure au plus, alors que chaque mesure décrit déjà le quart d'heure d'il y a 2 h 10 : l'EMS n'y perd presque rien. Le planning, publié avec *retain*, arrive à la connexion suivante.
 - **Optimisation à essayer : garder la connexion ouverte (F3).** C'est le moins cher, mais seulement si le réseau garde la connexion TCP inactive pendant 15 minutes (délai d'expiration du NAT de l'opérateur, inconnu) et si le module la conserve entre deux envois. À mesurer sur le kit.
 - Chaque mesure part dans son propre PUBLISH : le regroupement se fait en plusieurs messages dans une même connexion, la limite de 50 caractères par message du module reste donc respectée.
 
@@ -48,11 +48,24 @@ Avec une publication toutes les 15 minutes, un keep-alive de 900 s ou plus n'env
 
 | Question | Où | Tâche |
 |---|---|---|
-| Le ST87M01 sait-il reprendre une session TLS (session ID ou ticket) ? | Note d'application TLS de ST, puis essai | B-28 |
+| ~~Le ST87M01 sait-il reprendre une session TLS ?~~ **Oui**, activé par défaut (paramètre `<enable_resumption>` à la création du socket TLS) ; à confirmer sur le kit en comparant la taille de deux connexions | Assistant ST, puis essai | B-28 |
 | Combien pèse vraiment la poignée de main avec le certificat du broker de Mathieu (un certificat ECDSA, ou une chaîne) ? | Journal du module ou capture côté broker | B-28, B-29 |
 | Comment Wireless Logic compte les données : octets IP dans les deux sens, arrondi par session ? | Contrat ou support Wireless Logic | B-22 |
 | Au bout de combien de temps le NAT de l'opérateur coupe une connexion TCP inactive ? | Essai sur le kit avec des keep-alive de 300, 900 et 1 200 s | B-29 |
+| Une connexion TCP / MQTT ouverte survit-elle à la veille PSM du module ? (l'assistant ST n'a pas la réponse) | Essai sur le kit | B-29 |
 | Consommation réelle d'une journée, comparée à ces estimations | Compteur de données de la SIM sur le portail de l'opérateur | B-29 |
+
+## Réponses de l'assistant ST (4 novembre 2026)
+
+Questions posées par Merveil au *NB-IoT Sidekick* de st.com, qui s'appuie sur la documentation officielle du ST87M01. Une réponse d'assistant est moins sûre qu'un document : on la vérifie sur le kit.
+
+| Question | Réponse |
+|---|---|
+| Reprise de session TLS sur la -1301, y compris pour MQTT ? | Oui : session ID ou ticket, activée par défaut, réglable par `<enable_resumption>` à la création du socket TLS ; le client MQTT en profite |
+| ADC du module : 10 ou 11 bits ? | **11 bits** (Design Guide v2.4, § 4.6, et § 7.3, tableau 39) |
+| Une connexion ouverte survit-elle au PSM ? | Pas de réponse dans la documentation : à tester |
+| Keep-alive MQTT maximal ? | 3 600 s (`AT#MQTTCFG` : 0 = pas de keep-alive, 120 s par défaut) |
+| Différences entre -1301 et -1000 / -1001 ? | Matériel seulement : la -1301 ajoute la localisation GNSS et Wi-Fi ; ADC supplémentaire sur -1301 et -1001 ; mêmes bandes (B1, B3, B5, B8, B20, B28). Aucune différence de commandes AT ni de firmware documentée |
 
 ## Hypothèses du calcul
 
