@@ -52,3 +52,9 @@ Application [`../nilm_npu`](../nilm_npu) (dérivée de NPU_Validation de ST), m�
 ## Programme complet (`appli_nilm`, mode `SOURCE_TIC`) — 5 novembre 2026
 
 Même essai (UK-DALE maison 1, 2014-01-15, `--accel 60 --8n1 --retour`) avec le programme unifié de `tic_test` (mesure, NILM et envoi réunis dans `appli_nilm.c`). Les 25 premiers messages (02:15 → 08:15) sont **identiques au caractère près** à ceux du premier essai CPU : le passage au programme complet ne change rien au résultat.
+
+**Trames abîmées** (`--erreurs 5 --nb 400`) : 9 messages sur 9, aux bonnes heures (02:15 → 04:15), pas de plantage. Le total baisse de 3 à 8 Wh par quart d'heure : avec `--accel 60` une trame vaut une minute, donc une trame rejetée retire une minute de mesure. Avec le vrai Linky (une trame par seconde), une trame rejetée ne retire qu'un soixantième de la minute.
+
+## Programme complet, mode `SOURCE_VI` — premier essai sans générateur (5 novembre 2026)
+
+A0 et A1 à la masse, simulateur à l'heure réelle (`--puissance 0 --nb 200 --retour`) pour donner l'heure : une ligne par minute, à l'heure juste (`VI 1518`, `VI 1519`, `VI 1520`), valeurs nulles (U = 0, I = 0, P = 0, S = 0). Reste à faire au générateur : valeurs non nulles, étalonnage, déphasage.
