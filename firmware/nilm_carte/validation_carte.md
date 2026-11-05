@@ -24,7 +24,23 @@ python nilm_carte/attendu_nilm.py --ukdale ../Modele_IA/house_1/an1 --jour 2014-
 - Les appareils sont reconnus dans les mêmes quarts d'heure que sur PC (bouilloire à 07:30, 07:45, 08:15, 12:45, 13:15, 17:00, 19:30, 20:15 ; lave-linge de 14:00 à 15:45 et de 18:15 à 20:00 ; lave-vaisselle à 18:15).
 - 58 messages sont identiques à 1 Wh près ; les 20 autres diffèrent de 2 à 11 Wh, surtout pendant le lave-linge. Ce sont les arrondis du moteur int8 de ST (Cortex-M55) par rapport à onnxruntime : quelques minutes changent d'état près du seuil. Sur la journée, l'écart reste sous 1,1 % par appareil.
 
-Durée d'un calcul du modèle sur le Cortex-M55 : **651 ms sans cache, 62 ms avec les caches** (un calcul toutes les 15 minutes). Sur le NPU Neural-ART, la validation de la semaine 7 donnait 2 ms.
+Durée d'un calcul du modèle sur le Cortex-M55 : **651 ms sans cache, 62 ms avec les caches** (un calcul toutes les 15 minutes).
+
+## Même journée sur le NPU Neural-ART
+
+Application [`../nilm_npu`](../nilm_npu) (dérivée de NPU_Validation de ST), même simulateur, même journée. **78 messages sur 78, 2,155 ms par calcul** (2,19 ms pour le premier), conversion des entrées et sorties comprise : environ 29 fois plus rapide que le Cortex-M55.
+
+| Appareil | PC | Cortex-M55 | NPU | Quarts d'heure allumé/éteint identiques (NPU) | Écart max (NPU) |
+|---|---|---|---|---|---|
+| Frigo | 1 011 Wh | 1 000 Wh (-1,1 %) | 1 001 Wh (-1,0 %) | 76 / 78 | 5 Wh |
+| Bouilloire | 690 Wh | 691 Wh (+0,1 %) | 723 Wh (+4,8 %) | 78 / 78 | 20 Wh |
+| Lave-linge | 2 587 Wh | 2 596 Wh (+0,3 %) | 2 572 Wh (-0,6 %) | 77 / 78 | 11 Wh |
+| Lave-vaisselle | 26 Wh | 26 Wh | 26 Wh | 78 / 78 | 0 Wh |
+| Total mesuré | 10 062 Wh | 10 062 Wh | 10 062 Wh | - | 0 Wh |
+
+- Comme sur le Cortex-M55, 58 messages sur 78 sont identiques au PC à 1 Wh près, et le total est identique partout.
+- Le NPU n'arrondit pas exactement comme le moteur int8 du processeur ni comme onnxruntime : 38 messages sont strictement identiques entre processeur et NPU. Les écarts restent de quelques Wh, sauf pour la bouilloire à 19:30 (59 Wh au lieu de 39 sur PC) et à 12:45 (91 au lieu de 85), d'où les +4,8 % sur la journée.
+- Les 3 quarts d'heure allumé/éteint différents sont des cas limites de quelques Wh (lave-linge à 5 Wh à 20:15 au lieu de 0).
 
 ## Problèmes rencontrés
 

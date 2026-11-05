@@ -26,4 +26,4 @@ python simulateur_tic.py envoyer --port /dev/tty.usbmodem102 --ukdale ../Modele_
     --jour 2014-01-15 --accel 60 --retour --journal carte.txt --8n1
 ```
 
-Premiers résultats (5 novembre 2026) : **2,15 à 2,19 ms par calcul** (conversion des entrées et sorties comprise), contre 62 ms sur le Cortex-M55 ; premiers messages identiques à ceux du processeur (`0215;20;0;0;0;68`, `0230;26;0;0;0;76`).
+Résultats sur une journée complète (5 novembre 2026) : **78 messages sur 78, 2,155 ms par calcul** (conversion des entrées et sorties comprise), contre 62 ms sur le Cortex-M55 ; total identique au PC, 58 messages identiques au PC à 1 Wh près. Détail : [`../nilm_carte/validation_carte.md`](../nilm_carte/validation_carte.md).
