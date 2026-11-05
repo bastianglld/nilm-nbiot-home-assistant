@@ -13,6 +13,20 @@ Proposition de la partie C (contenu des messages), alignée le 5 novembre 2026 s
 
 La carte s'abonne à `nilm/maison/cmd/+` en QoS 1 : elle reçoit ainsi le planning et les commandes ponctuelles avec un seul abonnement. Ce filtre ne couvre qu'un niveau : la carte ne reçoit pas ses propres confirmations `cmd/<appareil>/etat`.
 
+Côté carte, chaque message reçu est traité selon la fin de son topic :
+
+- `nilm/maison/cmd/plan` : planning du lendemain, décodé comme décrit plus bas (32 caractères) ;
+- `nilm/maison/cmd/<appareil>` : commande ponctuelle `ON` / `OFF` du relais de cet appareil, puis confirmation sur `nilm/maison/cmd/<appareil>/etat` ;
+- tout autre nom : ignoré. `plan` est donc un nom réservé, qui ne peut pas désigner un appareil.
+
+Droits des comptes du broker (ACL) :
+
+| Compte | Écriture | Lecture |
+|---|---|---|
+| Carte (module NB-IoT) | `nilm/maison/etat`, `nilm/maison/dispo`, `nilm/maison/cmd/+/etat` | `nilm/maison/cmd/+` |
+| EMS (serveur, `flexibilite/ems_serveur.py`) | `nilm/maison/cmd/plan`, `nilm/maison/conseils` | `nilm/maison/etat` |
+| Home Assistant | `nilm/maison/cmd/<appareil>` | `nilm/maison/etat`, `nilm/maison/dispo`, `nilm/maison/cmd/+/etat`, `nilm/maison/conseils` |
+
 Les messages vers la carte sont publiés en *retain* : la carte dort entre deux connexions, et le manuel AT du ST87M01 ne propose aucun réglage de session persistante (à vérifier sur le kit). Avec *retain*, la carte reçoit le dernier planning et la dernière commande à chaque connexion. Le planning envoyé la veille reste la voie principale : une commande ponctuelle peut mettre jusqu'à une heure à arriver si la carte ne se connecte qu'une fois par heure.
 
 Noms d'appareils pour `cmd/<appareil>` : `chauffe_eau` (testé le 5 novembre) ; `batterie` proposé. Liste à confirmer avec Mathieu.
