@@ -19,6 +19,7 @@ La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puis
 | [`attendu_nilm.py`](attendu_nilm.py) | Messages attendus sur PC pour une journée UK-DALE (même modèle, onnxruntime), et comparaison avec ce qu'a envoyé la carte |
 | [`nilm_ia.h`](nilm_ia.h), [`nilm_ia.c`](nilm_ia.c) | Appel du modèle généré par ST Edge AI (API legacy, Cortex-M55) : conversion float <-> int8 avec l'échelle lue dans le code généré, durée du calcul |
 | [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests |
+| [`validation_carte.md`](validation_carte.md) | Résultats sur la carte : journée UK-DALE complète, comparaison avec le PC |
 
 Réglages (identiques à `nilm_meta.json`) : fenêtre de 272 minutes, une fenêtre toutes les 15 minutes, minutes 130 à 144 retenues. Les fenêtres finissent à hh:07, :22, :37 et :52 pour que le quart d'heure retenu commence pile à hh:00, :15, :30 ou :45 (retard de 2 h 07 à 2 h 22). Une minute sans mesure est mise à 0 sur les 3 entrées, comme à l'entraînement.
 
