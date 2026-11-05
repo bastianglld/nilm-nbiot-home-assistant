@@ -6,9 +6,9 @@ Partie C du projet (Bastian Guilloud). [`ems_serveur.py`](ems_serveur.py) est le
 
 | Tâche | Quand | Entrée | Sortie |
 |---|---|---|---|
-| Enregistrer les mesures | en continu | messages de la carte sur `maison/nilm_01/q` | historique CSV des quarts d'heure |
-| Planning du lendemain | chaque jour vers 13 h 30, après la publication des prix | historique, offre du foyer, prix du lendemain | message de 32 caractères sur `maison/nilm_01/plan` et notification du soir |
-| Analyse et conseils | chaque semaine | historique d'au moins quelques semaines | recommandations JSON sur `maison/nilm_01/conseils` |
+| Enregistrer les mesures | en continu | messages de la carte sur `nilm/maison/etat` | historique CSV des quarts d'heure |
+| Planning du lendemain | chaque jour vers 13 h 30, après la publication des prix | historique, offre du foyer, prix du lendemain | message de 32 caractères sur `nilm/maison/cmd/plan` et notification du soir |
+| Analyse et conseils | chaque semaine | historique d'au moins quelques semaines | recommandations JSON sur `nilm/maison/conseils` |
 
 Le planning décide, heure par heure, quand le chauffe-eau peut chauffer, quand la batterie charge ou se décharge, et à quelle heure lancer le lave-linge et le lave-vaisselle. Les règles sont simples et vérifiables : le chauffe-eau chauffe aux heures les moins chères, juste assez pour ne jamais manquer d'eau chaude ; la batterie se charge aux 2 heures les moins chères et ne se décharge que si l'écart de prix couvre ses pertes.
 

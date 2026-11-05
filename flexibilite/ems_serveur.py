@@ -63,8 +63,8 @@ class Config:
     departs: tuple = tuple([22] + list(range(0, 22)))
     detection: dict = field(default_factory=lambda: {"washing_machine": (25, 2, 200), "dishwasher": (25, 2, 300), "kettle": (30, 0, 30)})
     # MQTT
-    topic_plan: str = "maison/nilm_01/plan"
-    topic_conseils: str = "maison/nilm_01/conseils"
+    topic_plan: str = "nilm/maison/cmd/plan"
+    topic_conseils: str = "nilm/maison/conseils"
     broker: str = "localhost"
     port: int = 1883
     prix_dir: Path = Path("prix")
@@ -476,7 +476,7 @@ def decoder_mesures(payload: str, maintenant: pd.Timestamp) -> dict:
     return {"time": t, "total": float(tot), "fridge": float(fr), "kettle": float(ke), "washing_machine": float(ll), "dishwasher": float(lv)}
 
 
-def enregistreur(csv_path: str, cfg: Config, topic="maison/nilm_01/q"):
+def enregistreur(csv_path: str, cfg: Config, topic="nilm/maison/etat"):
     """Abonné MQTT qui ajoute chaque message de la carte à l'historique CSV utilisé par le planning et l'analyse."""
     import paho.mqtt.client as mqtt
     path = Path(csv_path)

@@ -42,7 +42,7 @@ class TestLecture(unittest.TestCase):
         self.assertIn("2080", m)
 
     def test_limites(self):
-        self.assertEqual(tj.verifier_limites("nilm_01", "u", "p", ["maison/nilm_01/q"], "1615;21;48;0;0;310"), [])
+        self.assertEqual(tj.verifier_limites("nilm_01", "u", "p", ["nilm/maison/etat"], "1615;21;48;0;0;310"), [])
         pbs = tj.verifier_limites("c" * 26, "u" * 26, "p" * 51, ["t" * 51], "m" * 51)
         self.assertEqual(len(pbs), 5)
 
@@ -64,7 +64,7 @@ class TestSeance(unittest.TestCase):
         self.assertTrue(r.mqtt_publie)
         self.assertTrue(r.mqtt_recu)
         self.assertIn("AT#SOCKETCREATE=5,0,TCP,,10,10", module.recues)
-        self.assertIn("AT#MQTTPUB=maison/nilm_01/q,1615;21;48;0;0;310,3,1,0", module.recues)
+        self.assertIn("AT#MQTTPUB=nilm/maison/etat,1615;21;48;0;0;310,3,1,0", module.recues)
         self.assertIn("AT#SOCKETCLOSE=5,0", module.recues)
 
     def test_broker_par_nom(self):

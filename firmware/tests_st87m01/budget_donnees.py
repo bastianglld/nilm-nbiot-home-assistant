@@ -41,8 +41,8 @@ TLS_CLOSE_NOTIFY = segment(2 + TLS_ENREGISTREMENT)
 
 # -- MQTT 3.1.1 (format de docs/protocole_messages.md)
 CLIENT, UTILISATEUR, MOT_DE_PASSE = "nilm_01", "nilm_01", "x" * 20
-TOPIC_MESURE, MESURE = "maison/nilm_01/q", "1615;21;48;0;0;310"
-TOPIC_PLAN, PLAN = "maison/nilm_01/plan", "2101;R;000003;0002AAAAA005;22;22"
+TOPIC_MESURE, MESURE = "nilm/maison/etat", "1615;21;48;0;0;310"
+TOPIC_PLAN, PLAN = "nilm/maison/cmd/plan", "2101;R;000003;0002AAAAA005;22;22"
 
 CONNECT = 2 + 10 + sum(2 + len(c) for c in (CLIENT, UTILISATEUR, MOT_DE_PASSE))
 CONNACK = 4

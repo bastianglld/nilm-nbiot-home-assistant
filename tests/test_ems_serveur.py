@@ -25,7 +25,7 @@ def config():
 
 
 class MessageDescendant(unittest.TestCase):
-    """Le planning envoyé à la carte (topic maison/nilm_01/plan) : 32 caractères, décodage sans perte."""
+    """Le planning envoyé à la carte (topic nilm/maison/cmd/plan) : 32 caractères, décodage sans perte."""
 
     def test_aller_retour(self):
         rng = np.random.default_rng(0)
@@ -50,7 +50,7 @@ class MessageDescendant(unittest.TestCase):
 
 
 class MessageMontant(unittest.TestCase):
-    """Les mesures envoyées par la carte toutes les 15 minutes (topic maison/nilm_01/q)."""
+    """Les mesures envoyées par la carte toutes les 15 minutes (topic nilm/maison/etat)."""
 
     def test_meme_jour(self):
         m = ems.decoder_mesures("1030;12.5;0;180;0;450", pd.Timestamp("2026-10-21 12:40"))

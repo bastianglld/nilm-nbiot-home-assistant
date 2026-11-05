@@ -119,9 +119,9 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 | 6.2 | `AT#MQTTCFG?` puis `AT#MQTTCFG=nilm_01,20,20,10,0` | `OK` | Nom du client (25 caractères au plus), délai de connexion 20 s, délai de protocole 20 s, 10 essais. Dernier champ : **keep-alive**, mis à 0 pour les tests. Attention : le manuel annonce 120 s par défaut, la note MQTT 10 s ; le lire avec `AT#MQTTCFG?` et le fixer soi-même |
 | 6.3 | `AT#SOCKETCREATE=5,0,TCP,,10,10` | `#SOCKETCREATE: 0` (numéro de la socket) | Contexte 5, IPv4, TCP, port local libre, délais d'envoi et de réception de 10 s (exemple de ST). Si les délais expirent, monter à 30 s : la note demande des délais « assez grands » pour le réseau. Au plus 3 sockets (1 TCP et 2 UDP) |
 | 6.4 | `AT#MQTTCONNECT=5,0,<adresse IP>,1883,<utilisateur>,<mot de passe>` | `OK` | Port 1883 en clair pour ce premier test seulement. Utilisateur : 25 caractères au plus ; mot de passe : 50 au plus. Vérifier avec `AT#MQTTCONNECT?` → `#MQTTCONNECT: 1,…` |
-| 6.5 | `AT#MQTTPUB=maison/nilm_01/q,1615;21;48;0;0;310,3,1,0` | `OK` | Topic et message : **50 caractères au plus chacun**. 3 essais, QoS 1, sans *retain*. Si le `;` du message pose problème, réessayer avec le message entre guillemets. Mathieu vérifie : `mosquitto_sub -t 'maison/nilm_01/#' -v` |
-| 6.6 | `AT#MQTTSUB=maison/nilm_01/plan,1` | `OK` | Mathieu publie un planning de test |
-| 6.7 | (attendre) | `#MQTTRECV: maison/nilm_01/plan, 2101;R;000003;0002AAAAA005;22;22` | Message reçu du broker |
+| 6.5 | `AT#MQTTPUB=nilm/maison/etat,1615;21;48;0;0;310,3,1,0` | `OK` | Topic et message : **50 caractères au plus chacun**. 3 essais, QoS 1, sans *retain*. Si le `;` du message pose problème, réessayer avec le message entre guillemets. Mathieu vérifie : `mosquitto_sub -t 'maison/nilm_01/#' -v` |
+| 6.6 | `AT#MQTTSUB=nilm/maison/cmd/+,1` | `OK` | Mathieu publie un planning de test |
+| 6.7 | (attendre) | `#MQTTRECV: nilm/maison/cmd/plan, 2101;R;000003;0002AAAAA005;22;22` | Message reçu du broker |
 | 6.8 | `AT#MQTTDISC` | `OK` | Déconnexion propre |
 | 6.9 | `AT#SOCKETCLOSE=5,0` | `OK` | Ferme la socket (et le lien TCP s'il est encore ouvert) |
 
