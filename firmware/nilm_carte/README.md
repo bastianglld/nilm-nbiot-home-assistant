@@ -17,6 +17,7 @@ La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puis
 |---|---|
 | [`nilm_flux.h`](nilm_flux.h), [`nilm_flux.c`](nilm_flux.c) | Moyenne par minute, historique de 272 minutes, entrées (kW, sin et cos de l'heure), sortie -> Wh et message. Portable, sans HAL |
 | [`attendu_nilm.py`](attendu_nilm.py) | Messages attendus sur PC pour une journée UK-DALE (même modèle, onnxruntime), et comparaison avec ce qu'a envoyé la carte |
+| [`appli_nilm.h`](appli_nilm.h), [`appli_nilm.c`](appli_nilm.c) | Application complète de la carte : source de puissance au choix (`SOURCE_PUISSANCE` : TIC ou mesure V/I), étalonnage (`CAPTEURS_REELS`), NILM, envoi du message par une seule fonction (`envoyer_message`, vers le ST87M01 plus tard) |
 | [`nilm_ia.h`](nilm_ia.h), [`nilm_ia.c`](nilm_ia.c) | Appel du modèle généré par ST Edge AI (API legacy, Cortex-M55) : conversion float <-> int8 avec l'échelle lue dans le code généré, durée du calcul |
 | [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests |
 | [`validation_carte.md`](validation_carte.md) | Résultats sur la carte : journée UK-DALE complète, comparaison avec le PC |
@@ -49,3 +50,14 @@ python attendu_nilm.py --ukdale ~/Desktop/MASTER/Projet/Modele_IA/house_1/an1 --
 ```
 
 Avec `--accel 60`, le simulateur envoie la moyenne de chaque minute UK-DALE (une trame par minute simulée) ; le premier message arrive après 272 trames (environ 4 min 30), puis un toutes les 15 secondes. Choisir un jour de la période de test du modèle (après fin novembre 2013).
+
+## Programme complet de la carte (projet CubeIDE `tic_test`)
+
+`main.c` ne garde que l'initialisation générée par CubeMX et trois appels : `appli_init()` (après le port COM1), `appli_pas()` dans `while (1)`, et `appli_echantillon(tension, courant)` dans l'interruption de l'ADC. Réglages dans `appli_nilm.h` :
+
+| Réglage | Valeur | Effet |
+|---|---|---|
+| `SOURCE_PUISSANCE` | `SOURCE_TIC` (défaut) | NILM alimenté par les trames TIC (simulateur ou Linky) |
+| | `SOURCE_VI` | NILM alimenté par la mesure de la carte ; une ligne `VI hhmm U=… I=… P=… S=… fp=…` par minute ; une trame TIC éventuelle remet l'horloge à l'heure |
+| `CAPTEURS_REELS` | 0 (défaut) / 1 | Volts sur le connecteur (GBF) / coefficients de la pince SCT-013 (22 Ω) et de l'adaptateur 230 V → 9 V (pont 100 kΩ / 8,2 kΩ) |
+| `DEPART_HORODATE` | `"H261105000000"` | Heure de départ en mode V/I tant que l'heure n'est pas connue |
