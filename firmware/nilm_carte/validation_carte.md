@@ -48,3 +48,7 @@ Application [`../nilm_npu`](../nilm_npu) (dérivée de NPU_Validation de ST), m�
 - **Plantage de la sonde au bout de quelques minutes en débogage** : trop de Live Expressions lues en continu (dont des expressions en erreur) en plus du port série. Pendant ce plantage, les messages de la carte n'arrivent plus au PC. Pour un essai long, lancer en **Run** (la sonde se déconnecte du débogage et ne gère plus que le port série).
 - **Liaison en 8N1** : la carte est réglée en 8N1 et le simulateur lancé avec `--8n1` (parité TIC calculée par le script dans le 8e bit, même signal sur le fil).
 - **Envoi au milieu d'une trame** : un message envoyé par la carte pendant la réception d'une trame fait perdre des octets (envoi et réception par scrutation dans la même boucle). Les messages NILM partent juste après la fin d'une trame et ne sont pas concernés.
+
+## Programme complet (`appli_nilm`, mode `SOURCE_TIC`) — 5 novembre 2026
+
+Même essai (UK-DALE maison 1, 2014-01-15, `--accel 60 --8n1 --retour`) avec le programme unifié de `tic_test` (mesure, NILM et envoi réunis dans `appli_nilm.c`). Les 25 premiers messages (02:15 → 08:15) sont **identiques au caractère près** à ceux du premier essai CPU : le passage au programme complet ne change rien au résultat.
