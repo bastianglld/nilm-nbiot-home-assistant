@@ -58,3 +58,32 @@ Même essai (UK-DALE maison 1, 2014-01-15, `--accel 60 --8n1 --retour`) avec le 
 ## Programme complet, mode `SOURCE_VI` — premier essai sans générateur (5 novembre 2026)
 
 A0 et A1 à la masse, simulateur à l'heure réelle (`--puissance 0 --nb 200 --retour`) pour donner l'heure : une ligne par minute, à l'heure juste (`VI 1518`, `VI 1519`, `VI 1520`), valeurs nulles (U = 0, I = 0, P = 0, S = 0). Reste à faire au générateur : valeurs non nulles, étalonnage, déphasage.
+
+## Programme complet avec le NILM sur le NPU — 6 novembre 2026
+
+Même programme `tic_test`, `NILM_SUR_NPU 1` (`nilm_ia_npu.c`) : modèle régénéré avec tout en mémoire interne (profil `nilm-interne`, [`../nilm_npu/interne`](../nilm_npu/interne)), poids recopiés dans l'AXISRAM3 au démarrage. Plus de flash externe ni de `n6_loader.py` : un simple **Run** dans CubeIDE suffit.
+
+| Essai (UK-DALE 2014-01-15, `--accel 60 --8n1 --retour`) | Messages | Temps par calcul | Résultat |
+|---|---|---|---|
+| Programme complet, NILM sur le Cortex-M55 (`NILM_SUR_NPU 0`) | 15 | 64,5 à 65,3 ms | identique à l'essai CPU du 5 novembre |
+| Programme complet, NILM sur le NPU (`NILM_SUR_NPU 1`) | 25 (02:15 → 08:15) | **6,03 à 6,07 ms** | **identique au caractère près** au NPU du 5 novembre (projet `nilm_npu`, poids en flash externe), bouilloire de 07:30 comprise |
+
+Le calcul prend 6 ms au lieu de 2,2 ms parce que le NPU est cadencé à 300 MHz dans `tic_test` (IC6, réglage CubeMX) contre 1 GHz dans le projet d'ST ; c'est 10 fois plus rapide que le processeur et largement suffisant pour un calcul toutes les 15 minutes.
+
+**Problème rencontré : le premier calcul ne finissait jamais.** Le moteur LL_ATON met le processeur en veille (`WFE`) en attendant la fin de chaque étape du NPU ; or, par défaut, la veille coupe aussi l'horloge du NPU et de ses RAM. La carte recevait les trames pendant 4 min 30 puis restait bloquée au premier calcul (diagnostic : délai d'une seconde ajouté, message `NILM ERREUR calcul=-10`). Corrigé dans `npu/npu_materiel.c` en gardant ces horloges pendant la veille (`__HAL_RCC_xxx_CLK_SLEEP_ENABLE`, comme `set_clk_sleep_mode()` d'ST) et en attendant le NPU en boucle plutôt qu'en veille.
+
+## Mesure V/I au générateur, programme complet — 6 novembre 2026
+
+`SOURCE_PUISSANCE SOURCE_VI`, `CAPTEURS_REELS 0` : la ligne de chaque minute donne U et I efficaces en mV sur le connecteur et le facteur de puissance en centièmes. Générateur Keysight deux voies, 50 Hz, offset 1,65 V : voie 1 sur A1 (tension), voie 2 sur A0 (courant). Référence : oscilloscope Keysight EDUX1052A, mesure « CA EFF – N cycles » et phase.
+
+| Grandeur | Oscilloscope | Carte | Écart |
+|---|---|---|---|
+| U (A1) | 383,9 mV | 384 mV | < 0,1 % |
+| I (A0) | 182,9 mV | 181 à 182 mV | 0,5 % |
+| Déphasage voies synchronisées | 0° → cos = 1,00 | fp = 0,99 | 0,01 |
+| Déphasage 60° | −59,6° → cos = 0,507 | fp = 0,50 à 0,51 | < 0,01 |
+| Voies non synchronisées (piège du générateur) | −127° → cos = −0,60 | fp = −0,65 | angle à 3° près |
+
+**Étalonnage : `CORRECTION_V = CORRECTION_I = 1,00`.** Le gain théorique de l'étage d'entrée Arduino de la carte (0,54) est juste, les écarts sont dans la précision de l'oscilloscope. Reste à vérifier avec la pince SCT-013 et l'adaptateur 230 V → 9 V (`CAPTEURS_REELS 1`) dès leur réception.
+
+Pièges : sur un générateur deux voies, « phase 0° » ne suffit pas, il faut **aligner les phases** (menu Phase > Align Phase) ; sonde de l'oscilloscope en ×10 avec la voie réglée en 1:1 → valeur affichée 10 fois trop petite (régler « Sonde » sur 10:1).

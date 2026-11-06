@@ -16,11 +16,17 @@
 
 /* ------------------------------------------------------------------ réglages */
 #ifndef SOURCE_PUISSANCE
-#define SOURCE_PUISSANCE SOURCE_TIC      /* SOURCE_VI quand la pince et l'adaptateur sont branchés */
+#define SOURCE_PUISSANCE SOURCE_TIC    /* SOURCE_VI quand la pince et l'adaptateur sont branchés */
 #endif
 
 #ifndef CAPTEURS_REELS
 #define CAPTEURS_REELS 0                 /* 0 : volts sur le connecteur (test au GBF) ; 1 : pince et adaptateur */
+#endif
+
+/* 1 : ajoute « t=<durée du calcul>us » à la fin des lignes NILM (essais) ; 0 : message seul (envoi NB-IoT).
+   Le choix processeur / NPU se fait dans nilm_ia.h (NILM_SUR_NPU). */
+#ifndef NILM_AFFICHER_DUREE
+#define NILM_AFFICHER_DUREE 1
 #endif
 
 /* Heure de départ en mode V/I (« SAAMMJJhhmmss », comme l'horodate TIC), tant que l'heure n'est pas connue.

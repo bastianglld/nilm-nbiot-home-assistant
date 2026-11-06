@@ -50,17 +50,31 @@ static void envoyer_message(const char *ligne)
 static void puissance_vers_nilm(int32_t minute, float puissance)
 {
   if (!nilm_flux_mesure(&nilm, minute, puissance)) return;
-  if (nilm_etat_ia != 0) return;
+  if (nilm_etat_ia != 0)
+  {
+    char err[48];                                 /* modèle pas prêt : on le signale au lieu de se taire */
+    snprintf(err, sizeof err, "NILM ERREUR init=%ld\r\n", (long)nilm_etat_ia);
+    envoyer_message(err);
+    return;
+  }
   uint32_t duree;
-  if (nilm_ia_calculer(&nilm, &duree) != 0)
+  int err = nilm_ia_calculer(&nilm, &duree);
+  if (err != 0)
   {
     nilm_erreurs++;
+    char l[64];
+    snprintf(l, sizeof l, "NILM ERREUR calcul=%d (npu bloque si -10)\r\n", err);
+    envoyer_message(l);
     return;
   }
   nilm_duree_us = duree;
   nilm_messages++;
-  char ligne[64];
+  char ligne[80];
+#if NILM_AFFICHER_DUREE                           /* durée du calcul en fin de ligne, pour les essais */
+  snprintf(ligne, sizeof ligne, "NILM %s t=%luus\r\n", nilm.message, (unsigned long)duree);
+#else
   snprintf(ligne, sizeof ligne, "NILM %s\r\n", nilm.message);
+#endif
   envoyer_message(ligne);
   BSP_LED_Toggle(LED_BLUE);
 }
@@ -71,7 +85,13 @@ void appli_init(void)
   tic_init(&tic);
   mesure_init(&mes, 4000, K_V, K_I, 60);
   nilm_flux_init(&nilm);
+  envoyer_message("DEMARRAGE : init du modele...\r\n");
   nilm_etat_ia = nilm_ia_init();
+  {
+    char l[48];
+    snprintf(l, sizeof l, "DEMARRAGE : modele etat %ld\r\n", (long)nilm_etat_ia);
+    envoyer_message(l);
+  }
   minute_vi = nilm_minute_horodate(DEPART_HORODATE);
 }
 
@@ -122,9 +142,16 @@ void appli_pas(void)
     float s = mes.s_minute, p = mes.p_minute;
     /* une ligne par minute pour l'étalonnage : U (dV), I (cA), P (W), S (VA), fp (centièmes) */
     char ligne[96];
+#if CAPTEURS_REELS
     snprintf(ligne, sizeof ligne, "VI %02ld%02ld U=%ld dV I=%ld cA P=%ld W S=%ld VA fp=%ld\r\n",
              (long)((m % 1440) / 60), (long)(m % 60), (long)(mes.vrms * 10.0f), (long)(mes.irms * 100.0f),
              (long)p, (long)s, (long)(mes.fp * 100.0f));
+#else
+    /* essai au générateur : valeurs efficaces en millivolts sur le connecteur (A1 tension, A0 courant) */
+    snprintf(ligne, sizeof ligne, "VI %02ld%02ld U=%ld mV I=%ld mV fp=%ld (centiemes)\r\n",
+             (long)((m % 1440) / 60), (long)(m % 60), (long)(mes.vrms * 1000.0f), (long)(mes.irms * 1000.0f),
+             (long)(mes.fp * 100.0f));
+#endif
     envoyer_message(ligne);
     puissance_vers_nilm(m, s);
   }

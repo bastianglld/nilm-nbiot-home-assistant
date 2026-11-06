@@ -27,3 +27,17 @@ python simulateur_tic.py envoyer --port /dev/tty.usbmodem102 --ukdale ../Modele_
 ```
 
 Résultats sur une journée complète (5 novembre 2026) : **78 messages sur 78, 2,155 ms par calcul** (conversion des entrées et sorties comprise), contre 62 ms sur le Cortex-M55 ; total identique au PC, 58 messages identiques au PC à 1 Wh près. Détail : [`../nilm_carte/validation_carte.md`](../nilm_carte/validation_carte.md).
+
+## Version sans mémoire externe, intégrée au programme complet
+
+Le dossier [`interne/`](interne/) régénère le modèle avec tout en RAM interne :
+
+| Fichier | Rôle |
+|---|---|
+| [`interne/nilm_interne.mpool`](interne/nilm_interne.mpool) | Carte mémoire pour ST Edge AI : AXISRAM1 (624 Ko) et RAM du NPU (AXISRAM3 à 6) ; AXISRAM2 exclue (programme FSBL), pas de flash ni de RAM externes |
+| [`interne/nilm_neuralart.json`](interne/nilm_neuralart.json) | Profil `nilm-interne` (mêmes options du compilateur Neural-ART que `n6-allmems-O3`) |
+| [`interne/generer.sh`](interne/generer.sh) | `stedgeai generate --target stm32n6 --st-neural-art nilm-interne@…` |
+| [`interne/raw_vers_c.py`](interne/raw_vers_c.py) | Poids (`network_atonbuf.AXISRAM3.raw`) vers un tableau C, recopié dans l'AXISRAM3 au démarrage |
+| [`interne/rapport_generation.txt`](interne/rapport_generation.txt) | Rapport de ST Edge AI : 23 Ko de poids et 59,5 Ko d'activations dans npuRAM3, 54 étapes dont 16 en logiciel |
+
+Le compilateur a tout placé dans npuRAM3 (la plus rapide). Intégration et résultats : [`../nilm_carte/README.md`](../nilm_carte/README.md#nilm-sur-le-npu-dans-le-programme-complet-nilm_sur_npu-1) et [`../nilm_carte/validation_carte.md`](../nilm_carte/validation_carte.md) — 25 messages identiques au caractère près à ceux de ce projet, 6 ms par calcul (NPU à 300 MHz).

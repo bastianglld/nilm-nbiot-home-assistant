@@ -1,0 +1,10 @@
+{
+    "Globals": {},
+    "Profiles": {
+        "nilm-interne": {
+            "memory_pool": "./nilm_interne.mpool",
+            "machine_desc": "/Users/mac_bastian/STM32Cube/Repository/Packs/STMicroelectronics/X-CUBE-AI/10.2.0/scripts/N6_scripts/my_mdescs/stm32n6.mdesc",
+            "options": "--optimization 3 --all-buffers-info --mvei --cache-maintenance --Oauto-sched --native-float --enable-virtual-mem-pools --Omax-ca-pipe 4 --Ocache-opt --Os"
+        }
+    }
+}
