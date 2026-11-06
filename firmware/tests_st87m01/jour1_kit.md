@@ -68,7 +68,7 @@ Si le module ne répond plus en cours de test : il dort probablement. Un caract�
 | 4.5 | `AT+CGCONTRDP=5` | `+CGCONTRDP: 5,5,"<APN>","<adresse>","","<DNS 1>","<DNS 2>",…` : l'APN et les serveurs DNS donnés par le réseau sur le **contexte 5** (celui utilisé par défaut) | Si l'APN est vide ou faux : demander l'APN à Wireless Logic, puis `AT+CFUN=0`, configurer avec `AT+CGDCONT`, `AT#RESET=1` (sauvegarde et redémarrage) |
 | 4.6 | `AT+CGPADDR=5` | `+CGPADDR: 5,"<adresse IPv4>"[,"<adresse IPv6>"]` | Pas d'adresse : contexte de données non actif, revoir l'APN |
 | 4.7 | Attendre `+CGEV: ME PDN ACT 5` puis `#IPCFG: 5,0,1` (si ces messages n'apparaissent jamais : `AT+CGEREP=1`) ; ou lire `AT#IPCFG?` | Pile IPv4 configurée automatiquement sur le contexte 5 (IP automatique activée par défaut) | Sinon, configuration manuelle : `AT#IPCFG=5,0,<adresse lue en 4.6>` → « IP Network is Up for context 5 » |
-| 4.8 | `AT#IPPING=5,8.8.8.8` | `#IPPING: …` avec les temps de réponse | Premier test d'Internet, très léger en données. Pas de réponse : pas d'accès Internet (APN, offre de la SIM) |
+| 4.8 | `AT#IPPING=5,8.8.8.8,30,10,3` (3 pings, 30 s d'attente) | `#IPPING: envoyés,reçus,perdus,min,max,moy` avec **reçus > 0** ; `999999` = pas de réponse | Premier test d'Internet, très léger en données. Pas de réponse : pas d'accès Internet (APN, offre de la SIM) |
 
 **Ce qu'on doit voir au démarrage** (exemple de la note TCP_UDP_IP, sans aucune commande) :
 

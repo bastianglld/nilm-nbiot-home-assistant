@@ -110,6 +110,18 @@ class TestSeance(unittest.TestCase):
         self.assertFalse(r.reussi)
         self.assertFalse(any(c.startswith("AT#MQTTCONNECT") for c in module.recues))
 
+    def test_ping_sans_reponse(self):
+        # cas vu sur le kit le 6 nov : « #IPPING: 1,0,1,999999,0,0 » doit être un échec
+        r, module = lancer(ping_ok=False)
+        self.assertFalse(r.ping)
+        self.assertFalse(r.reussi)
+        self.assertIn("AT#IPPING=5,8.8.8.8,30,10,3", module.recues)
+
+    def test_ping_recus(self):
+        self.assertEqual(tj.ping_recus("#IPPING: 1,0,1,999999,0,0"), 0)
+        self.assertEqual(tj.ping_recus("#IPPING: 3,2,1,1518,2210,1790"), 2)
+        self.assertIsNone(tj.ping_recus(None))
+
     def test_echo_active(self):
         r, _ = lancer(echo=True)
         self.assertTrue(r.reussi, r.etapes)

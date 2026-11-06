@@ -52,6 +52,6 @@ L'IMSI, l'ICCID, l'IMEI et le mot de passe MQTT sont masqués dans le journal. L
 |---|---|---|
 | 2 Dialogue | `AT`, `AT+CMEE=2`, `ATI`, `AT+CGMR`, `AT#SLEEPMODE?` | `OK` ; signale si la mise en veille est active |
 | 3 SIM | `AT#SIMST?`, `AT+CPIN?` | `#SIMST: 1` et `READY` ; sinon le script s'arrête |
-| 4 Attache | `AT#BANDSEL?`, `AT+CFUN?`, `AT+CEREG?` toutes les 10 s, `AT+COPS?`, `AT+CGCONTRDP=5`, `AT+CGPADDR=5`, `AT#IPCFG?`, `AT#IPPING=5,8.8.8.8` | `+CEREG` à 1 ou 5 en moins de 300 s, une adresse IP ; arrêt immédiat si l'enregistrement est refusé (3) |
+| 4 Attache | `AT#BANDSEL?`, `AT+CFUN?`, `AT+CEREG?` toutes les 10 s, `AT+COPS?`, `AT+CGCONTRDP=5`, `AT+CGPADDR=5`, `AT#IPCFG?`, `AT#IPPING=5,8.8.8.8,30,10,3` | `+CEREG` à 1 ou 5 en moins de 300 s, une adresse IP, au moins une réponse au ping (2ᵉ champ de `#IPPING`) ; arrêt immédiat si l'enregistrement est refusé (3) |
 | 5 Signal | `AT+CESQ` | RSRP en dBm = valeur − 141 ; RSRQ en dB = valeur / 2 − 20 |
 | 6 MQTT | `AT#DNS` (si nom), `AT#MQTTCFG`, `AT#SOCKETCREATE=5,…`, `AT#MQTTCONNECT=5,…`, `AT#MQTTPUB`, `AT#MQTTSUB`, `AT#MQTTDISC`, `AT#SOCKETCLOSE` | Limites du module respectées (topic et message ≤ 50, client et utilisateur ≤ 25, mot de passe ≤ 50), publication acceptée, planning reçu (`#MQTTRECV`) |
