@@ -28,27 +28,25 @@ Les prix téléchargés sont gardés dans le dossier `prix/` du dossier de trava
 
 ## Utilisation
 
+**Sur le serveur : voir [`deploiement/`](deploiement/)** (installation en une commande, services et tâches automatiques).
+
+À la main, par exemple depuis un PC :
+
 ```bash
 pip install numpy pandas paho-mqtt
+export MQTT_PASSWORD='...'                 # mot de passe du compte ems, jamais sur la ligne de commande
 
 # en continu : enregistrer les messages de la carte
-python ems_serveur.py enregistreur --historique historique.csv --broker <adresse du broker>
+python ems_serveur.py enregistreur --historique historique.csv --broker <adresse> --utilisateur ems [--tls]
 
 # chaque jour à 13 h 30 : planning de demain, publié avec retain pour que la carte le récupère à son réveil
-python ems_serveur.py planning --historique historique.csv --offre Tempo --publier --broker <adresse du broker>
+python ems_serveur.py planning --historique historique.csv --offre Tempo --publier --broker <adresse> --utilisateur ems [--tls]
 
-# chaque lundi : analyse et conseils
-python ems_serveur.py analyse --historique historique.csv --offre-actuelle Base --publier --broker <adresse du broker>
+# chaque lundi : analyse et conseils (7 jours d'historique au moins)
+python ems_serveur.py analyse --historique historique.csv --offre-actuelle Base --publier --broker <adresse> --utilisateur ems [--tls]
 ```
 
-Avec `cron` :
-
-```
-30 13 * * *  cd /opt/ems && python3 ems_serveur.py planning --historique historique.csv --offre Tempo --publier
-0 8 * * 1    cd /opt/ems && python3 ems_serveur.py analyse  --historique historique.csv --offre-actuelle Base --publier
-```
-
-Sans `paho-mqtt`, le programme affiche la commande `mosquitto_pub` équivalente au lieu de publier.
+Connexion : `--port` (1883 par défaut, 8883 avec `--tls`), `--cafile` pour l'autorité de test du broker Docker. Sans `--publier`, rien n'est envoyé ; sans `paho-mqtt`, le programme affiche la commande `mosquitto_pub` équivalente.
 
 ## Résultats en simulation
 
@@ -66,7 +64,7 @@ Les règles simples atteignent 74 à 84 % de l'économie maximale calculée par 
 
 ## Ce qui reste à faire
 
-- Brancher l'enregistreur sur le vrai broker (adresse, identifiants, TLS) avec Mathieu.
+- Installer l'EMS sur le VPS avec Mathieu ([`deploiement/`](deploiement/)) et vérifier le téléchargement des prix depuis le serveur.
 - Valider avec Merveil le décodage du message de planning sur la carte et la commande du relais.
 - Estimer l'état de la cuve à minuit avec une vraie mesure (fixé à 60 % pour l'instant).
 - Ajouter les radiateurs et le chauffe-eau au NILM, ou les mesurer directement, pour des conseils plus complets.

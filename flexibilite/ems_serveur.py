@@ -15,13 +15,18 @@ Utilisation en ligne de commande :
     python ems_serveur.py planning  --historique messages.csv --offre Tempo [--publier]      (chaque jour vers 13 h 30)
     python ems_serveur.py analyse   --historique messages.csv --offre-actuelle Base [--publier]   (chaque semaine)
 
-Dépendances : numpy, pandas ; paho-mqtt seulement pour publier sur le broker (sinon la commande mosquitto_pub est affichée).
+Connexion au broker (voir cloud/README.md) : --broker, --port, --utilisateur, mot de passe dans la variable
+d'environnement MQTT_PASSWORD (jamais en clair sur la ligne de commande), --tls et --cafile hors du serveur.
+Sur le VPS, l'EMS utilise le compte « ems » sur 127.0.0.1:1883 ; installation : flexibilite/deploiement/.
+
+Dépendances : numpy, pandas ; paho-mqtt (2.x) seulement pour le broker (sans lui, la commande mosquitto_pub est affichée).
 """
 from __future__ import annotations
 
 import argparse
 import json
 import math
+import os
 import ssl
 import urllib.request
 from dataclasses import dataclass, field
@@ -65,8 +70,13 @@ class Config:
     # MQTT
     topic_plan: str = "nilm/maison/cmd/plan"
     topic_conseils: str = "nilm/maison/conseils"
+    topic_mesures: str = "nilm/maison/etat"
     broker: str = "localhost"
     port: int = 1883
+    utilisateur: str | None = None          # compte du broker (« ems » sur le VPS)
+    mot_de_passe: str | None = None         # lu dans la variable d'environnement MQTT_PASSWORD
+    tls: bool = False                       # inutile sur le VPS (127.0.0.1:1883), obligatoire depuis un autre PC (8883)
+    cafile: str | None = None               # autorité de test (broker Docker) ; sinon certificats du système
     prix_dir: Path = Path("prix")
 
     @property
@@ -182,7 +192,9 @@ def prix_horaires(offre: str, jour: pd.Timestamp, cfg: Config, cache: dict | Non
 def charger_historique(path) -> pd.DataFrame:
     """Messages de 15 min : colonnes total + 4 appareils (Wh), index = début du quart d'heure (heure locale)."""
     df = pd.read_csv(path, index_col=0, parse_dates=True)
-    return df[["total"] + APPS].sort_index(kind="stable")
+    df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="time")     # aussi pour un historique encore vide
+    df = df[["total"] + APPS].sort_index(kind="stable")
+    return df[~df.index.duplicated(keep="last")]    # un quart d'heure reçu deux fois (QoS 1) n'est compté qu'une fois
 
 
 def horaire_par_jour(hist: pd.DataFrame, col="total") -> pd.DataFrame:
@@ -216,16 +228,16 @@ def detecter_cycles(s: pd.Series, seuil_wh, trou, min_wh) -> pd.DataFrame:
 
 
 def habitudes(hist: pd.DataFrame, cfg: Config) -> tuple[pd.DataFrame, dict]:
-    semaines = max((hist.index[-1] - hist.index[0]).days / 7, 1e-9)
+    semaines = max((hist.index[-1] - hist.index[0]).days / 7 if len(hist) else 0, 1e-9)
     cyc = {a: detecter_cycles(hist[a], *cfg.detection[a]) for a in cfg.detection}
     rows = []
     for a, c in cyc.items():
-        h = c["debut"].dt.hour
+        h = pd.to_datetime(c["debut"]).dt.hour if len(c) else pd.Series(dtype=int)
         rows.append({"appareil": a, "cycles par semaine": len(c) / semaines,
                      "énergie d'un cycle (kWh)": c["energie_wh"].mean() / 1000 if len(c) else 0.0,
                      "heure habituelle": int(h.mode()[0]) if len(c) else None,
                      "part en heures pleines (%)": 100 * (~h.isin(cfg.hc_hours)).mean() if len(c) else 0.0,
-                     "part le week-end (%)": 100 * (c["debut"].dt.dayofweek >= 5).mean() if len(c) else 0.0})
+                     "part le week-end (%)": 100 * (pd.to_datetime(c["debut"]).dt.dayofweek >= 5).mean() if len(c) else 0.0})
     return pd.DataFrame(rows).set_index("appareil"), cyc
 
 
@@ -476,35 +488,76 @@ def decoder_mesures(payload: str, maintenant: pd.Timestamp) -> dict:
     return {"time": t, "total": float(tot), "fridge": float(fr), "kettle": float(ke), "washing_machine": float(ll), "dishwasher": float(lv)}
 
 
-def enregistreur(csv_path: str, cfg: Config, topic="nilm/maison/etat"):
-    """Abonné MQTT qui ajoute chaque message de la carte à l'historique CSV utilisé par le planning et l'analyse."""
+def client_mqtt(cfg: Config, nom: str):
+    """Client paho-mqtt 2.x avec le compte et le chiffrement de la configuration."""
     import paho.mqtt.client as mqtt
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=nom)
+    if cfg.utilisateur:
+        client.username_pw_set(cfg.utilisateur, cfg.mot_de_passe)
+    if cfg.tls:
+        client.tls_set(ca_certs=cfg.cafile)                  # vérifie le certificat du broker
+    return client
+
+
+def enregistreur(csv_path: str, cfg: Config, topic: str | None = None):
+    """Abonné MQTT qui ajoute chaque message de la carte à l'historique CSV utilisé par le planning et l'analyse.
+
+    Se réabonne après chaque reconnexion et ignore un quart d'heure déjà enregistré (message QoS 1 reçu deux fois)."""
+    topic = topic or cfg.topic_mesures
     path = Path(csv_path)
     if not path.exists():
         path.write_text("time,total," + ",".join(APPS) + "\n")
+    deja = set(pd.read_csv(path, usecols=[0]).iloc[-500:, 0].astype(str)) if path.stat().st_size > 60 else set()
+
+    def on_connect(client, userdata, flags, reason_code, properties):
+        if reason_code.is_failure:
+            print(f"connexion refusée par le broker : {reason_code}", flush=True)
+            return
+        client.subscribe(topic, qos=1)
+        print(f"connecté à {cfg.broker}:{cfg.port}, abonné à {topic}", flush=True)
 
     def on_message(client, userdata, msg):
         try:
             r = decoder_mesures(msg.payload.decode(), pd.Timestamp.now())
+            cle = str(r["time"])
+            if cle in deja:
+                return
+            deja.add(cle)
             with path.open("a") as f:
                 f.write(f"{r['time']},{r['total']},{r['fridge']},{r['kettle']},{r['washing_machine']},{r['dishwasher']}\n")
         except Exception as e:
-            print("message ignoré :", msg.payload, e)
-    client = mqtt.Client()
+            print("message ignoré :", msg.payload, e, flush=True)
+
+    client = client_mqtt(cfg, "ems-enregistreur")
+    client.on_connect = on_connect
     client.on_message = on_message
-    client.connect(cfg.broker, cfg.port)
-    client.subscribe(topic, qos=1)
-    client.loop_forever()
+    client.reconnect_delay_set(1, 60)
+    client.connect_async(cfg.broker, cfg.port, keepalive=60)   # broker absent au démarrage : on réessaie
+    client.loop_forever(retry_first_connection=True)
 
 
 # ============================================================================ publication MQTT
 def publier(topic: str, payload: str, cfg: Config, retain=True):
+    """Publie un message (QoS 1, retain par défaut) et attend l'accusé du broker."""
     try:
-        import paho.mqtt.publish as publish
-        publish.single(topic, payload, qos=1, retain=retain, hostname=cfg.broker, port=cfg.port)
-        print(f"publié sur {topic} ({len(payload)} caractères)")
+        import paho.mqtt.client  # noqa: F401
     except ImportError:
-        print(f"paho-mqtt absent ; commande équivalente :\nmosquitto_pub -h {cfg.broker} -p {cfg.port} -t {topic} {'-r ' if retain else ''}-q 1 -m '{payload}'")
+        compte = f'-u {cfg.utilisateur} -P "$MQTT_PASSWORD" ' if cfg.utilisateur else ""
+        print(f"paho-mqtt absent ; commande équivalente :\nmosquitto_pub -h {cfg.broker} -p {cfg.port} {compte}"
+              f"-t {topic} {'-r ' if retain else ''}-q 1 -m '{payload}'")
+        return
+    client = client_mqtt(cfg, "ems-publication")
+    client.connect(cfg.broker, cfg.port, keepalive=30)
+    client.loop_start()
+    try:
+        info = client.publish(topic, payload, qos=1, retain=retain)
+        info.wait_for_publish(timeout=15)
+        if not info.is_published():
+            raise RuntimeError(f"pas d'accusé du broker pour {topic} (compte, mot de passe ou droits ?)")
+        print(f"publié sur {topic} ({len(payload)} caractères)", flush=True)
+    finally:
+        client.disconnect()
+        client.loop_stop()
 
 
 # ============================================================================ ligne de commande
@@ -519,9 +572,17 @@ def main():
     ap.add_argument("--cumulus", type=float, default=0.0, help="kWh/jour d'un cumulus à ajouter (s'il n'est pas déjà dans les mesures)")
     ap.add_argument("--decalage-jours", type=int, default=0, help="démonstration seulement : rejouer un historique ancien sur des prix récents")
     ap.add_argument("--publier", action="store_true")
-    ap.add_argument("--broker", default="localhost")
+    ap.add_argument("--broker", default="localhost", help="adresse du broker (127.0.0.1 sur le VPS)")
+    ap.add_argument("--port", type=int, default=None, help="1883 sans TLS (défaut), 8883 avec --tls")
+    ap.add_argument("--utilisateur", default=None, help="compte du broker ; mot de passe dans la variable MQTT_PASSWORD")
+    ap.add_argument("--tls", action="store_true", help="connexion chiffrée (depuis un autre PC que le serveur)")
+    ap.add_argument("--cafile", default=None, help="autorité de certification de test (broker Docker)")
+    ap.add_argument("--prix", default="prix", help="dossier où garder les prix téléchargés")
     a = ap.parse_args()
-    cfg = Config(broker=a.broker)
+    cfg = Config(broker=a.broker, port=a.port or (8883 if a.tls else 1883), utilisateur=a.utilisateur,
+                 mot_de_passe=os.environ.get("MQTT_PASSWORD"), tls=a.tls, cafile=a.cafile, prix_dir=Path(a.prix))
+    if a.utilisateur and not cfg.mot_de_passe:
+        ap.error("variable MQTT_PASSWORD absente : export MQTT_PASSWORD='...' (ou fichier ems.env sur le serveur)")
     if a.action == "enregistreur":
         return enregistreur(a.historique, cfg)
     hist = charger_historique(a.historique)
@@ -533,6 +594,10 @@ def main():
         if a.publier:
             publier(cfg.topic_plan, plan["message"], cfg)
     else:
+        jours = hist.index.normalize().nunique()
+        if jours < 7:                                         # premières semaines sur le serveur : rien à conseiller
+            print(f"historique de {jours} jour(s) : analyse reportée (7 jours au moins)")
+            return
         res = analyse(hist, a.offre_actuelle, cfg, decalage_jours=a.decalage_jours, cumulus_kwh=a.cumulus)
         for r in res["recommandations"]:
             print(f"• {r['titre']}\n  {r['texte']}")

@@ -1,0 +1,17 @@
+# EMS : enregistre en continu les messages de la carte (nilm/maison/etat) dans /opt/ems/historique.csv
+[Unit]
+Description=EMS NILM - enregistreur des messages de la carte
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+User=ems
+WorkingDirectory=/opt/ems
+EnvironmentFile=/etc/ems/ems.env
+Environment=TZ=Europe/Paris
+ExecStart=/opt/ems/venv/bin/python -u /opt/ems/ems_serveur.py enregistreur --historique /opt/ems/historique.csv --broker 127.0.0.1 --utilisateur ems
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

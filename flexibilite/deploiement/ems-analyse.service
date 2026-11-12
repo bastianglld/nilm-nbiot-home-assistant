@@ -1,0 +1,13 @@
+# EMS : habitudes, profils de journées et conseils, publiés avec retain sur nilm/maison/conseils (lancé par ems-analyse.timer)
+[Unit]
+Description=EMS NILM - analyse et conseils
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ems
+WorkingDirectory=/opt/ems
+EnvironmentFile=/etc/ems/ems.env
+Environment=TZ=Europe/Paris
+ExecStart=/opt/ems/venv/bin/python -u /opt/ems/ems_serveur.py analyse --historique /opt/ems/historique.csv --offre-actuelle ${EMS_OFFRE_ACTUELLE} --prix /opt/ems/prix --publier --broker 127.0.0.1 --utilisateur ems

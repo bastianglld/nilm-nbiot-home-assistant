@@ -1,0 +1,10 @@
+# Chaque jour à 13 h 30 (heure française) : après la couleur Tempo (vers 11 h) et les prix spot (vers 13 h)
+[Unit]
+Description=EMS NILM - planning du lendemain chaque jour à 13 h 30
+
+[Timer]
+OnCalendar=*-*-* 13:30:00 Europe/Paris
+Persistent=true
+
+[Install]
+WantedBy=timers.target
