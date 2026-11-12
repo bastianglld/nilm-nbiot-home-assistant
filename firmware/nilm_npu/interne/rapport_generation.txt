@@ -1,0 +1,210 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-11-05 15:33:07
+Parameters            : generate --target stm32n6 --st-neural-art nilm-interne@/Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/nilm_neuralart.json -m /Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/../../../Modele_IA/STM32/n6_validation/nilm_int8.onnx --output sortie --workspace ws
+
+Model name - nilm_int8
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+m_id   layer (original)                                    oshape             param/size          macc                     connected to 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+0      x ()                                                [b:1,h:272,c:3]                                                              
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+19     x_QuantizeLinear_Output (QuantizeLinear)            [b:1,h:272,c:3]                       1,632                                x 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+20     x_DequantizeLinear_Output (DequantizeLinear)        [b:1,h:272,c:3]                       1,632          x_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+21     relu (Conv)                                         [b:1,h:272,c:32]   128/512           26,144        x_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+22     relu_QuantizeLinear_Output (QuantizeLinear)         [b:1,h:272,c:32]                     17,408                             relu 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+23     relu_DequantizeLinear_Output (DequantizeLinear)     [b:1,h:272,c:32]                     17,408       relu_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+24     relu_1 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616     relu_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+25     relu_1_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_1 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+26     relu_1_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_1_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+27     add (Add)                                           [b:1,h:272,c:32]                      8,704     relu_DequantizeLinear_Output 
+                                                                                                         relu_1_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+28     add_QuantizeLinear_Output (QuantizeLinear)          [b:1,h:272,c:32]                     17,408                              add 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+29     add_DequantizeLinear_Output (DequantizeLinear)      [b:1,h:272,c:32]                     17,408        add_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+30     relu_2 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616      add_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+31     relu_2_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_2 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+32     relu_2_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_2_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+33     add_1 (Add)                                         [b:1,h:272,c:32]                      8,704      add_DequantizeLinear_Output 
+                                                                                                         relu_2_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+34     add_1_QuantizeLinear_Output (QuantizeLinear)        [b:1,h:272,c:32]                     17,408                            add_1 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+35     add_1_DequantizeLinear_Output (DequantizeLinear)    [b:1,h:272,c:32]                     17,408      add_1_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+36     relu_3 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616    add_1_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+37     relu_3_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_3 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+38     relu_3_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_3_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+39     add_2 (Add)                                         [b:1,h:272,c:32]                      8,704    add_1_DequantizeLinear_Output 
+                                                                                                         relu_3_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+40     add_2_QuantizeLinear_Output (QuantizeLinear)        [b:1,h:272,c:32]                     17,408                            add_2 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+41     add_2_DequantizeLinear_Output (DequantizeLinear)    [b:1,h:272,c:32]                     17,408      add_2_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+42     relu_4 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616    add_2_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+43     relu_4_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_4 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+44     relu_4_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_4_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+45     add_3 (Add)                                         [b:1,h:272,c:32]                      8,704    add_2_DequantizeLinear_Output 
+                                                                                                         relu_4_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+46     add_3_QuantizeLinear_Output (QuantizeLinear)        [b:1,h:272,c:32]                     17,408                            add_3 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+47     add_3_DequantizeLinear_Output (DequantizeLinear)    [b:1,h:272,c:32]                     17,408      add_3_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+48     relu_5 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616    add_3_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+49     relu_5_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_5 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+50     relu_5_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_5_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+51     add_4 (Add)                                         [b:1,h:272,c:32]                      8,704    add_3_DequantizeLinear_Output 
+                                                                                                         relu_5_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+52     add_4_QuantizeLinear_Output (QuantizeLinear)        [b:1,h:272,c:32]                     17,408                            add_4 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+53     add_4_DequantizeLinear_Output (DequantizeLinear)    [b:1,h:272,c:32]                     17,408      add_4_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+54     relu_6 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616    add_4_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+55     relu_6_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_6 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+56     relu_6_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_6_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+57     add_5 (Add)                                         [b:1,h:272,c:32]                      8,704    add_4_DequantizeLinear_Output 
+                                                                                                         relu_6_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+58     add_5_QuantizeLinear_Output (QuantizeLinear)        [b:1,h:272,c:32]                     17,408                            add_5 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+59     add_5_DequantizeLinear_Output (DequantizeLinear)    [b:1,h:272,c:32]                     17,408      add_5_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+60     relu_7 (Conv)                                       [b:1,h:272,c:32]   3,104/12,416     835,616    add_5_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+61     relu_7_QuantizeLinear_Output (QuantizeLinear)       [b:1,h:272,c:32]                     17,408                           relu_7 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+62     relu_7_DequantizeLinear_Output (DequantizeLinear)   [b:1,h:272,c:32]                     17,408     relu_7_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+63     add_6 (Add)                                         [b:1,h:272,c:32]                      8,704    add_5_DequantizeLinear_Output 
+                                                                                                         relu_7_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+64     add_6_QuantizeLinear_Output (QuantizeLinear)        [b:1,h:272,c:32]                     17,408                            add_6 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+65     add_6_DequantizeLinear_Output (DequantizeLinear)    [b:1,h:272,c:32]                     17,408      add_6_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+66     y_QuantizeLinear_Input (Conv)                       [b:1,h:272,c:8]    264/1,056         69,640    add_6_DequantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+67     y_QuantizeLinear_Output (QuantizeLinear)            [b:1,h:272,c:8]                       4,352           y_QuantizeLinear_Input 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+68     y (DequantizeLinear)                                [b:1,h:272,c:8]                       4,352          y_QuantizeLinear_Output 
+------ --------------------------------------------------- ------------------ -------------- --------- -------------------------------- 
+model: macc=6,540,232 weights=88,480 activations=-- io=--
+
+
+
+
+
+Compilation details
+------------------------------------------------------------------------------------
+Compiler version: 1.1.1-14
+Compiler arguments:  -i /Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/sortie/nilm_int8_OE_3_3_0.onnx --json-quant-file /Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/sortie/nilm_int8_OE_3_3_0_Q.json -g network.c --load-mdesc /Users/mac_bastian/STM32Cube/Repository/Packs/STMicroelectronics/X-CUBE-AI/10.2.0/scripts/N6_scripts/my_mdescs/stm32n6.mdesc --load-mpool /Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/nilm_interne.mpool --save-mpool-file /Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/ws/neural_art__network/nilm_interne.mpool --out-dir-prefix /Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/interne/ws/neural_art__network/ --optimization 3 --all-buffers-info --mvei --cache-maintenance --Oauto-sched --native-float --enable-virtual-mem-pools --Omax-ca-pipe 4 --Ocache-opt --Os --output-info-file c_info.json
+====================================================================================
+
+Memory usage information  (input/output buffers are included in activations)
+------------------------------------------------------------------------------------
+	flexMEM    [0x34000000 - 0x34000000]:          0  B /          0  B  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	cpuRAM1    [0x34064000 - 0x34100000]:          0  B /    624.000 kB  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	cpuRAM2    [0x34100000 - 0x34100000]:          0  B /          0  B  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	npuRAM3    [0x34200000 - 0x34270000]:     82.517 kB /    448.000 kB  ( 18.42 % used) -- weights:     23.017 kB (  5.14 % used)  activations:     59.500 kB ( 13.28 % used)
+	npuRAM4    [0x34270000 - 0x342E0000]:          0  B /    448.000 kB  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	npuRAM5    [0x342E0000 - 0x34350000]:          0  B /    448.000 kB  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	npuRAM6    [0x34350000 - 0x343C0000]:          0  B /    448.000 kB  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	octoFlash  [0x71000000 - 0x71000000]:          0  B /          0  B  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+	hyperRAM   [0x90000000 - 0x90000000]:          0  B /          0  B  (  0.00 % used) -- weights:          0  B (  0.00 % used)  activations:          0  B (  0.00 % used)
+---
+Total:                                            82.517 kB                                  -- weights:     23.017 kB                  activations:     59.500 kB                   
+====================================================================================
+
+
+Used memory ranges
+------------------------------------------------------------------------------------
+	npuRAM3    [0x34200000 - 0x34270000]: 0x34200000-0x34214A20
+====================================================================================
+
+Epochs details
+------------------------------------------------------------------------------------
+Total number of epochs: 54 of which 16 implemented in software
+---
+epoch ID   HW/SW/EC Operation (SW only)
+epoch 1       HW    
+epoch 2       HW    
+epoch 3       HW    
+epoch 4       HW    
+epoch 5       HW    
+epoch 6       HW    
+epoch 7      -SW-   (    SpaceToDepth    )
+epoch 8       HW    
+epoch 9      -SW-   (    DepthToSpace    )
+epoch 10      HW    
+epoch 11      HW    
+epoch 12      HW    
+epoch 13     -SW-   (    SpaceToDepth    )
+epoch 14      HW    
+epoch 15     -SW-   (    DepthToSpace    )
+epoch 16      HW    
+epoch 17      HW    
+epoch 18      HW    
+epoch 19     -SW-   (    SpaceToDepth    )
+epoch 20      HW    
+epoch 21      HW    
+epoch 22     -SW-   (    DepthToSpace    )
+epoch 23      HW    
+epoch 24      HW    
+epoch 25      HW    
+epoch 26     -SW-   (    SpaceToDepth    )
+epoch 27      HW    
+epoch 28      HW    
+epoch 29     -SW-   (    DepthToSpace    )
+epoch 30      HW    
+epoch 31      HW    
+epoch 32      HW    
+epoch 33     -SW-   (        Pad         )
+epoch 34      HW    
+epoch 35     -SW-   (    SpaceToDepth    )
+epoch 36      HW    
+epoch 37      HW    
+epoch 38     -SW-   (    DepthToSpace    )
+epoch 39     -SW-   (        Pad         )
+epoch 40      HW    
+epoch 41      HW    
+epoch 42      HW    
+epoch 43     -SW-   (        Pad         )
+epoch 44      HW    
+epoch 45     -SW-   (    SpaceToDepth    )
+epoch 46      HW    
+epoch 47      HW    
+epoch 48     -SW-   (    DepthToSpace    )
+epoch 49     -SW-   (        Pad         )
+epoch 50      HW    
+epoch 51      HW    
+epoch 52      HW    
+epoch 53      HW    
+epoch 54      HW    
+====================================================================================

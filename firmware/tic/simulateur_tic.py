@@ -199,6 +199,20 @@ class SourceUKDALE:
         k = bisect.bisect_right(self.t, seconde_du_jour % 86400) - 1
         return self.p[max(k, 0)]
 
+    def moyenne_minute(self, seconde_du_jour: float) -> float:
+        """Moyenne de la minute qui commence à cette seconde : avec --accel 60 (une trame par minute simulée),
+        la carte reçoit ainsi la même puissance par minute que les données d'entraînement du NILM."""
+        if not hasattr(self, "_minutes"):
+            somme, n = [0.0] * 1440, [0] * 1440
+            for t, p in zip(self.t, self.p):
+                somme[int(t // 60)] += p
+                n[int(t // 60)] += 1
+            dernier, self._minutes = self.p[0], []
+            for i in range(1440):
+                dernier = somme[i] / n[i] if n[i] else dernier
+                self._minutes.append(dernier)
+        return self._minutes[int((seconde_du_jour % 86400) // 60)]
+
 
 def source_aleatoire(base_va: float = 350.0):
     """Talon de consommation + cycles d'appareils tirés au hasard (bouilloire, four, lave-linge)."""
@@ -309,6 +323,8 @@ def cmd_envoyer(a):
     if a.ukdale:
         jour = dt.date.fromisoformat(a.jour)
         source = SourceUKDALE(Path(a.ukdale).expanduser(), jour)
+        if a.periode * a.accel >= 60:                  # au moins une minute simulée par trame : moyenne de la minute
+            source = source.moyenne_minute
         t0 = dt.datetime.combine(jour, dt.time.fromisoformat(a.heure))
     else:
         source = (lambda s: a.puissance) if a.puissance is not None else source_aleatoire()
@@ -321,6 +337,26 @@ def cmd_envoyer(a):
     if port is None and sortie is None:
         raise SystemExit("indiquer --port (port série) ou --sortie (fichier)")
     rng = random.Random(a.graine)
+    journal = open(a.journal, "a", encoding="utf-8") if a.journal else None
+    recu = bytearray()
+
+    def lire_retour():
+        """Affiche les lignes renvoyées par la carte sur le même port (ex. « NILM 1615;21;48;0;0;310 »)."""
+        if not (port and a.retour) or not port.in_waiting:
+            return
+        bloc = port.read(port.in_waiting)
+        if a.brut:
+            print(f"carte (brut, {len(bloc)} octets) > {bloc!r}", file=sys.stderr)
+        recu.extend(bloc)
+        while b"\n" in recu:
+            ligne, _, reste = bytes(recu).partition(b"\n")
+            recu[:] = reste
+            texte = bytes(c & 0x7F for c in ligne).decode("ascii", "replace").strip()
+            if texte:
+                print(f"carte > {texte}", file=sys.stderr)
+                if journal:
+                    journal.write(texte + "\n"); journal.flush()
+
     pas = a.periode * a.accel                      # secondes simulées entre deux trames
     print(f"mode {a.mode} ({DEBIT[a.mode]} bauds, 7E1{' émulé en 8N1' if a.mode_8n1 else ''}), offre {a.offre}, "
           f"une trame toutes les {a.periode} s, {pas:g} s simulées par trame", file=sys.stderr)
@@ -346,6 +382,7 @@ def cmd_envoyer(a):
             n += 1
             if port and (a.nb is None or n < a.nb):
                 time.sleep(a.periode)
+            lire_retour()
     except KeyboardInterrupt:
         pass
     finally:
@@ -353,6 +390,8 @@ def cmd_envoyer(a):
             port.close()
         if sortie:
             sortie.close()
+        if journal:
+            journal.close()
     print(f"{n} trames envoyées", file=sys.stderr)
 
 
@@ -432,6 +471,9 @@ def main(argv=None):
     e.add_argument("--debut", default=None, help="date et heure simulées de départ (sans UK-DALE)")
     e.add_argument("--periode", type=float, default=1.0, help="secondes réelles entre deux trames")
     e.add_argument("--accel", type=float, default=1.0, help="accélération du temps simulé (60 = 1 min par trame)")
+    e.add_argument("--retour", action="store_true", help="afficher les lignes renvoyées par la carte (messages NILM)")
+    e.add_argument("--journal", help="avec --retour : enregistrer ces lignes dans un fichier (pour attendu_nilm.py)")
+    e.add_argument("--brut", action="store_true", help="avec --retour : afficher aussi les octets bruts reçus de la carte")
     e.add_argument("--nb", type=int, default=None, help="nombre de trames (par défaut : sans fin)")
     e.add_argument("--erreurs", type=float, default=0.0, help="pourcentage de trames volontairement abîmées")
     e.add_argument("--graine", type=int, default=0)
