@@ -185,6 +185,15 @@ def champs(ligne):
     return [c.strip().strip('"') for c in ligne.split(":", 1)[1].split(",")]
 
 
+def ping_recus(ligne):
+    """Nombre de réponses reçues dans « #IPPING: envoyés,reçus,perdus,min,max,moy »."""
+    v = champs(ligne)
+    try:
+        return int(v[1])
+    except (IndexError, TypeError, ValueError):
+        return None
+
+
 def etat_cereg(ligne):
     """État d'enregistrement : 2e champ en lecture (+CEREG: n,stat,…). None si illisible."""
     c = champs(ligne)
@@ -272,8 +281,12 @@ def seance(modem, opts, dormir=time.sleep, horloge=time.monotonic):
     c = modem.commande
 
     # 2. Dialogue
-    rep = c("AT")
-    if not r.noter("2.1", "AT -> OK", rep.ok, rep.erreur):
+    # le module peut dormir (DRX, PSM) : la première commande ne fait souvent que le réveiller
+    for essai in range(4):
+        rep = c("AT", delai=3.0)
+        if rep.ok:
+            break
+    if not r.noter("2.1", "AT -> OK", rep.ok, rep.erreur if essai == 0 else f"{rep.erreur} ({essai + 1} essais)"):
         return r
     c("AT+CMEE=2")
     c("ATI")
@@ -282,7 +295,11 @@ def seance(modem, opts, dormir=time.sleep, horloge=time.monotonic):
     rep = c("AT#SLEEPMODE?")
     l = rep.ligne("#SLEEPMODE:")
     veille = champs(l)[0] if l else "?"
-    r.noter("2.5", "mise en veille", True, "active : penser à AT#SLEEPMODE=0 pour la séance" if veille == "1" else f"état {veille}")
+    if veille == "1" and opts.sans_veille:
+        rep = c("AT#SLEEPMODE=0")
+        r.noter("2.5", "mise en veille", rep.ok, "désactivée pour la séance (AT#SLEEPMODE=0)" if rep.ok else rep.erreur)
+    else:
+        r.noter("2.5", "mise en veille", True, "active : penser à AT#SLEEPMODE=0 pour la séance" if veille == "1" else f"état {veille}")
 
     # 3. SIM
     rep = c("AT#SIMST?")
@@ -323,9 +340,12 @@ def seance(modem, opts, dormir=time.sleep, horloge=time.monotonic):
     rep = c("AT#IPCFG?")
     r.noter("4.7", "pile IP active", rep.ok, rep.ligne("#IPCFG:") or rep.erreur)
     if opts.ping:
-        rep = c(f"AT#IPPING={CONTEXTE},8.8.8.8", delai=40)
-        r.ping = rep.ok and rep.ligne("#IPPING:") is not None
-        r.noter("4.8", "ping 8.8.8.8", r.ping, rep.ligne("#IPPING:") or rep.erreur)
+        # 3 pings, 30 s d'attente chacun : la première réponse peut être lente en NB-IoT
+        rep = c(f"AT#IPPING={CONTEXTE},8.8.8.8,30,10,3", delai=120)
+        bilan = rep.ligne("#IPPING:")
+        recus = ping_recus(bilan)
+        r.ping = rep.ok and recus is not None and recus > 0
+        r.noter("4.8", "ping 8.8.8.8 (au moins une réponse)", r.ping, bilan or rep.erreur)
 
     # 5. Signal
     rep = c("AT+CESQ")
@@ -416,6 +436,8 @@ def options(argv=None):
     p.add_argument("--attente-attache", type=float, default=300, help="durée maximale d'attente de l'attache (s)")
     p.add_argument("--intervalle", type=float, default=10, help="intervalle entre deux AT+CEREG? (s)")
     p.add_argument("--sans-ping", dest="ping", action="store_false", help="ne pas faire AT#IPPING")
+    p.add_argument("--garder-veille", dest="sans_veille", action="store_false",
+                   help="ne pas désactiver la mise en veille du module (par défaut : AT#SLEEPMODE=0 pour la séance)")
     p.add_argument("--broker", help="adresse IP (ou nom) du broker MQTT ; sans broker, pas d'étape MQTT")
     p.add_argument("--port-mqtt", type=int, default=1883)
     p.add_argument("--client", default="nilm_01")

@@ -3,7 +3,7 @@
 Il répond aux commandes AT de la procédure du premier jour avec les formats du manuel
 ST87MXX_UM_AT et des notes d'application (MQTT, TCP_UDP_IP). Les valeurs (réseau,
 adresse IP, APN, signal) sont fictives. Il peut simuler des pannes : SIM absente,
-enregistrement refusé, pas de couverture, module muet, broker injoignable.
+enregistrement refusé, pas de couverture, module muet, broker injoignable, ping sans réponse.
 
 Le temps est simulé : attendre l'attache au réseau ne prend pas de vraies secondes.
 """
@@ -24,12 +24,14 @@ class FauxST87M01:
     """Même interface que TransportSerie : ecrire(texte), lire_ligne(delai), fermer()."""
 
     def __init__(self, horloge=None, sim=True, refus=False, couverture=True, attache_apres=40.0,
-                 rsrp=50, rsrq=20, broker_ok=True, muet=False, echo=False, veille=1,
+                 rsrp=50, rsrq=20, broker_ok=True, muet=False, echo=False, veille=1, ping_ok=True, endormi=0,
                  plan="2101;R;000003;0002AAAAA005;22;22"):
         self.h = horloge or HorlogeSimulee()
         self.sim, self.refus, self.couverture = sim, refus, couverture
         self.attache_apres, self.rsrp, self.rsrq = attache_apres, rsrp, rsrq
         self.broker_ok, self.muet, self.echo, self.veille, self.plan = broker_ok, muet, echo, veille, plan
+        self.ping_ok = ping_ok
+        self.endormi = endormi  # nombre de commandes perdues au réveil (veille DRX ou PSM)
         self.debut_radio = self.h.maintenant()
         self.sortie = [] if muet else ["", "#SYSSTART"]
         self.recues = []  # commandes reçues, pour les tests
@@ -45,6 +47,10 @@ class FauxST87M01:
             cmd = cmd.strip()
             if cmd:
                 self.recues.append(cmd)
+                if self.endormi > 0 and not self.muet:
+                    self.endormi -= 1
+                    self.sortie.append("#WAKEUP DRX")  # la commande réveille le module mais se perd
+                    continue
                 if not self.muet:
                     if self.echo:
                         self.sortie.append(cmd)
@@ -83,6 +89,9 @@ class FauxST87M01:
             return ["ST87M01 (faux module)", "OK"]
         if c == "AT+CGMR":
             return ["FAUX-1.0.0", "OK"]
+        if c.startswith("AT#SLEEPMODE="):
+            self.veille = int(c.split("=", 1)[1].split(",")[0])
+            return ok
         if c == "AT#SLEEPMODE?":
             return [f"#SLEEPMODE: {self.veille},10,0", "OK"]
         if c == "AT#SIMST?":
@@ -110,7 +119,10 @@ class FauxST87M01:
         if c == "AT#IPCFG?":
             return [f"#IPCFG: 5,1,10.0.0.2" if self._attache() else "#IPCFG: 5,0,0.0.0.0", "OK"]
         if c.startswith("AT#IPPING="):
-            return ["#IPPING: 1,1,0,1518,1518,1518", "OK"] if self._attache() else ["+CME ERROR: 3"]
+            if not self._attache():
+                return ["+CME ERROR: 3"]
+            # format du manuel AT : envoyés, reçus, perdus, min, max, moyenne (999999 = pas de réponse)
+            return ["#IPPING: 3,3,0,1518,2210,1790", "OK"] if self.ping_ok else ["#IPPING: 3,0,3,999999,0,0", "OK"]
         if c == "AT+CESQ":
             if not self._attache():
                 return ["+CESQ: 99,99,255,255,255,255", "OK"]
