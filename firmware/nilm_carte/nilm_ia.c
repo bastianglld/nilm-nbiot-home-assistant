@@ -1,5 +1,6 @@
 /* Appel du modèle NILM généré par ST Edge AI – voir nilm_ia.h */
 #include "nilm_ia.h"
+#if !NILM_SUR_NPU                /* version processeur ; la version NPU est dans nilm_ia_npu.c */
 #include <math.h>
 #include "main.h"            /* CMSIS : DWT, SystemCoreClock */
 #include "network.h"
@@ -60,3 +61,5 @@ int nilm_ia_calculer(nilm_flux_t *f, uint32_t *duree_us)
     if (duree_us) *duree_us = (DWT->CYCCNT - t0) / (SystemCoreClock / 1000000u);
     return 0;
 }
+
+#endif /* !NILM_SUR_NPU */

@@ -1,0 +1,8 @@
+{
+	// n6_loader : copie le code du modèle (généré pour le NPU) dans NILM_NPU, compile pour la NUCLEO, charge la carte et écrit les poids en flash externe
+	"network.c": "/Users/mac_bastian/Desktop/MASTER/Projet/Modele_IA/STM32/n6_validation/st_ai_output/network.c",
+	"project_path": "/Users/mac_bastian/Desktop/MASTER/Projet/04_Carte_mesure_TIC/nilm_npu/pack/Projects/STM32N6570-DK/Applications/NILM_NPU",
+	"project_build_conf": "N6-Nucleo",
+	"skip_external_flash_programming": false,
+	"skip_ram_data_programming": false
+}

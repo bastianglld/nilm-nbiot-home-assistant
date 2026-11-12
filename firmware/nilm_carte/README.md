@@ -17,8 +17,14 @@ La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puis
 |---|---|
 | [`nilm_flux.h`](nilm_flux.h), [`nilm_flux.c`](nilm_flux.c) | Moyenne par minute, historique de 272 minutes, entrées (kW, sin et cos de l'heure), sortie -> Wh et message. Portable, sans HAL |
 | [`attendu_nilm.py`](attendu_nilm.py) | Messages attendus sur PC pour une journée UK-DALE (même modèle, onnxruntime), et comparaison avec ce qu'a envoyé la carte |
+| [`appli_nilm.h`](appli_nilm.h), [`appli_nilm.c`](appli_nilm.c) | Application complète de la carte : source de puissance au choix (`SOURCE_PUISSANCE` : TIC ou mesure V/I), étalonnage (`CAPTEURS_REELS`), NILM, envoi du message par une seule fonction (`envoyer_message`, vers le ST87M01 plus tard) |
 | [`nilm_ia.h`](nilm_ia.h), [`nilm_ia.c`](nilm_ia.c) | Appel du modèle généré par ST Edge AI (API legacy, Cortex-M55) : conversion float <-> int8 avec l'échelle lue dans le code généré, durée du calcul |
+| [`nilm_ia_npu.c`](nilm_ia_npu.c) | Même interface que `nilm_ia.c`, modèle exécuté par le NPU Neural-ART (LL_ATON) ; choix par `NILM_SUR_NPU` dans `nilm_ia.h` |
+| [`npu/`](npu/) | Mise en route du NPU dans `tic_test` : RAM du NPU, horloges (y compris pendant la veille), droits d'accès RIF/RISAF ; pilote RIF compilé à part ; cache du NPU vide |
+| [`remettre_ia.sh`](remettre_ia.sh) | Remet `Middlewares/ST/AI` après un « Generate Code » de CubeMX (qui efface ce dossier) |
 | [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests |
+| [`validation_carte.md`](validation_carte.md) | Résultats sur la carte : journée UK-DALE complète, comparaison avec le PC |
+| [`../nilm_npu/`](../nilm_npu/) | Même chaîne avec le modèle sur le NPU Neural-ART |
 
 Réglages (identiques à `nilm_meta.json`) : fenêtre de 272 minutes, une fenêtre toutes les 15 minutes, minutes 130 à 144 retenues. Les fenêtres finissent à hh:07, :22, :37 et :52 pour que le quart d'heure retenu commence pile à hh:00, :15, :30 ou :45 (retard de 2 h 07 à 2 h 22). Une minute sans mesure est mise à 0 sur les 3 entrées, comme à l'entraînement.
 
@@ -47,3 +53,44 @@ python attendu_nilm.py --ukdale ~/Desktop/MASTER/Projet/Modele_IA/house_1/an1 --
 ```
 
 Avec `--accel 60`, le simulateur envoie la moyenne de chaque minute UK-DALE (une trame par minute simulée) ; le premier message arrive après 272 trames (environ 4 min 30), puis un toutes les 15 secondes. Choisir un jour de la période de test du modèle (après fin novembre 2013).
+
+## Programme complet de la carte (projet CubeIDE `tic_test`)
+
+`main.c` ne garde que l'initialisation générée par CubeMX et trois appels : `appli_init()` (après le port COM1), `appli_pas()` dans `while (1)`, et `appli_echantillon(tension, courant)` dans l'interruption de l'ADC. Réglages dans `appli_nilm.h` :
+
+| Réglage | Valeur | Effet |
+|---|---|---|
+| `SOURCE_PUISSANCE` | `SOURCE_TIC` (défaut) | NILM alimenté par les trames TIC (simulateur ou Linky) |
+| | `SOURCE_VI` | NILM alimenté par la mesure de la carte ; une ligne `VI hhmm U=… I=… P=… S=… fp=…` par minute ; une trame TIC éventuelle remet l'horloge à l'heure |
+| `CAPTEURS_REELS` | 0 (défaut) / 1 | Volts sur le connecteur (GBF) / coefficients de la pince SCT-013 (22 Ω) et de l'adaptateur 230 V → 9 V (pont 100 kΩ / 8,2 kΩ) |
+| `DEPART_HORODATE` | `"H261105000000"` | Heure de départ en mode V/I tant que l'heure n'est pas connue |
+
+### NILM sur le NPU dans le programme complet (`NILM_SUR_NPU 1`)
+
+Pas de mémoire externe : le modèle est généré avec le profil `nilm-interne` ([`../nilm_npu/interne`](../nilm_npu/interne)), poids et calculs dans l'AXISRAM3. Dans le projet `tic_test` :
+
+1. `FSBL/Core/Src/npu/` : copier depuis le pack X-CUBE-AI 10.2.0 (`Middlewares/ST/AI/Npu/ll_aton`) les `.h` et `ll_aton.c`, `ll_aton_cipher.c`, `ll_aton_dbgtrc.c`, `ll_aton_debug.c`, `ll_aton_lib.c`, `ll_aton_lib_sw_operators.c`, `ll_aton_rt_main.c`, `ll_aton_runtime.c`, `ll_aton_util.c`, `ll_sw_float.c`, `ll_sw_integer.c`, `ecloader.c` ; depuis `Npu/Devices/STM32N6XX` : `ATON.h`, `mcu_cache.c/h`, `npu_cache.h` ; plus les fichiers de [`npu/`](npu/) de ce dossier.
+2. Dans la copie de `ll_aton_config.h`, juste avant `/* Check definition of LL_ATON_PLATFORM */`, ajouter les réglages (évite de toucher aux réglages du projet CubeIDE) :
+   ```c
+   #ifndef LL_ATON_PLATFORM
+   #define LL_ATON_PLATFORM LL_ATON_PLAT_STM32N6
+   #endif
+   #ifndef LL_ATON_OSAL
+   #define LL_ATON_OSAL LL_ATON_OSAL_BARE_METAL
+   #endif
+   #ifndef LL_ATON_RT_MODE
+   #define LL_ATON_RT_MODE LL_ATON_RT_ASYNC
+   #endif
+   #ifndef LL_ATON_SW_FALLBACK
+   #define LL_ATON_SW_FALLBACK 1          /* 16 étapes du modèle en logiciel (Pad, SpaceToDepth...) */
+   #endif
+   #ifndef LL_ATON_DBG_BUFFER_INFO_EXCLUDED
+   #define LL_ATON_DBG_BUFFER_INFO_EXCLUDED 1
+   #endif
+   ```
+3. Code du modèle : `nilm_npu/interne/generer.sh`, puis `sortie/network.c` copié en `npu/network_npu.c`, et `python raw_vers_c.py sortie/network_atonbuf.AXISRAM3.raw npu/nilm_npu_poids.c`.
+4. `nilm_ia_npu.c` dans `FSBL/Core/Src` (à côté de `nilm_ia.c`). Le dossier `Core/Src` étant déjà compilé par CubeIDE, `npu/` l'est aussi : rien à changer dans le projet.
+
+Au démarrage, la carte envoie `DEMARRAGE : modele etat 0` (0 = prêt) ; chaque ligne NILM se termine par `t=<durée>us` tant que `NILM_AFFICHER_DUREE` vaut 1. Si le NPU ne répond plus pendant une seconde, la carte envoie `NILM ERREUR calcul=-10` et le NPU est abandonné.
+
+Taille du programme avec le NPU : environ 175 Ko de code et données constantes sur les 255 Ko de l'AXISRAM2 réservés au FSBL (le modèle pour le processeur n'est plus lié quand `NILM_SUR_NPU` vaut 1).
