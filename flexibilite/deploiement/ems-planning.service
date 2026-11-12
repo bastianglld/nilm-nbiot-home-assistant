@@ -1,0 +1,13 @@
+# EMS : planning du lendemain, publié avec retain sur nilm/maison/cmd/plan (lancé par ems-planning.timer)
+[Unit]
+Description=EMS NILM - planning du lendemain
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ems
+WorkingDirectory=/opt/ems
+EnvironmentFile=/etc/ems/ems.env
+Environment=TZ=Europe/Paris
+ExecStart=/opt/ems/venv/bin/python -u /opt/ems/ems_serveur.py planning --historique /opt/ems/historique.csv --offre ${EMS_OFFRE} --prix /opt/ems/prix --publier --broker 127.0.0.1 --utilisateur ems

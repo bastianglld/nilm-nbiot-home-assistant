@@ -104,3 +104,29 @@ class Analyse(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Deploiement(unittest.TestCase):
+    """Cas rencontrés sur le serveur : historique vide au premier jour, quart d'heure reçu deux fois (QoS 1)."""
+
+    def test_historique_vide(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "historique.csv"
+            f.write_text("time,total," + ",".join(ems.APPS) + "\n")
+            hist = ems.charger_historique(f)
+            self.assertEqual(len(hist), 0)
+            prev = ems.prevision_lendemain(hist, pd.Timestamp("2026-11-13"))
+            self.assertEqual(len(prev), 24)                        # consommation par défaut
+            tab, _ = ems.habitudes(hist, config())                 # ne plante pas sans données
+            self.assertEqual(len(tab), 3)
+
+    def test_doublon_compte_une_fois(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "historique.csv"
+            f.write_text("time,total," + ",".join(ems.APPS) + "\n"
+                         "2026-11-12 02:15:00,68,20,0,0,0\n2026-11-12 02:15:00,68,20,0,0,0\n2026-11-12 02:30:00,76,26,0,0,0\n")
+            hist = ems.charger_historique(f)
+            self.assertEqual(len(hist), 2)
+            self.assertEqual(hist["total"].sum(), 144)
