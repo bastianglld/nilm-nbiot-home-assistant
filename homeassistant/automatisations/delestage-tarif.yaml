@@ -1,0 +1,39 @@
+# Délestage selon le tarif : coupe les charges flexibles en heures pleines,
+# les relance en heures creuses. Ne fait rien si l'utilisateur a désactivé
+# le pilotage automatique.
+# Import : Paramètres > Automatisations > Créer > ⋮ > Modifier en YAML > coller.
+alias: Délestage selon le tarif
+description: Coupe les charges flexibles en heures pleines, les relance en heures creuses
+mode: restart
+triggers:
+  - trigger: state
+    entity_id: input_select.tarif_en_cours
+  - trigger: state
+    entity_id: input_boolean.pilotage_automatique
+    to: "on"
+conditions:
+  - condition: state
+    entity_id: input_boolean.pilotage_automatique
+    state: "on"
+actions:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: input_select.tarif_en_cours
+            state: Heures pleines
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id:
+                - switch.chauffe_eau_relais
+                - switch.radiateur_chambre_relais
+      - conditions:
+          - condition: state
+            entity_id: input_select.tarif_en_cours
+            state: Heures creuses
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id:
+                - switch.chauffe_eau_relais
+                - switch.radiateur_chambre_relais

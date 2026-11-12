@@ -1,0 +1,22 @@
+# Notification sur le téléphone à chaque nouvelle liste de conseils de l'EMS
+# (topic nilm/maison/conseils, une fois par semaine, voir docs/protocole_messages.md).
+# Prérequis : l'application Home Assistant (Companion) installée sur le téléphone.
+# Remplacer notify.notify par notify.mobile_app_<nom_du_telephone> pour viser un appareil précis.
+alias: Conseils de l'EMS
+description: Envoie le conseil qui fait gagner le plus en notification
+mode: single
+triggers:
+  - trigger: mqtt
+    topic: nilm/maison/conseils
+conditions:
+  - condition: template
+    value_template: "{{ trigger.payload_json is defined and trigger.payload_json | count > 0 }}"
+actions:
+  - variables:
+      conseil: "{{ trigger.payload_json[0] }}"   # la liste est triée par gain
+      autres: "{{ trigger.payload_json | count - 1 }}"
+  - action: notify.notify
+    data:
+      title: "💡 {{ conseil.titre }}"
+      message: >-
+        {{ conseil.texte }}{% if autres > 0 %} ({{ autres }} autre(s) conseil(s) dans Home Assistant){% endif %}

@@ -1,0 +1,15 @@
+{
+  "name": "Conseils",
+  "unique_id": "nilm_ems_conseils",
+  "state_topic": "nilm/maison/conseils",
+  "value_template": "{{ value_json | count }}",
+  "json_attributes_topic": "nilm/maison/conseils",
+  "json_attributes_template": "{{ {'conseils': value_json, 'gain_total_eur_an': (value_json | sum(attribute='gain_eur_an')) | round(0)} | tojson }}",
+  "icon": "mdi:lightbulb-on-outline",
+  "device": {
+    "identifiers": [
+      "ems_nilm"
+    ],
+    "name": "EMS"
+  }
+}

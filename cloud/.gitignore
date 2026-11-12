@@ -1,0 +1,5 @@
+# Fichiers créés à l'installation du broker local : jamais versionnés
+broker-local-docker/passwd
+broker-local-docker/certs/
+broker-local-docker/data/
+.env

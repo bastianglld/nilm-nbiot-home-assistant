@@ -1,0 +1,14 @@
+{
+  "name": "Boîtier connecté",
+  "unique_id": "nilm_boitier_connecte",
+  "state_topic": "nilm/maison/dispo",
+  "payload_on": "online",
+  "payload_off": "offline",
+  "device_class": "connectivity",
+  "device": {
+    "identifiers": [
+      "maison_nilm"
+    ],
+    "name": "Maison (NILM)"
+  }
+}

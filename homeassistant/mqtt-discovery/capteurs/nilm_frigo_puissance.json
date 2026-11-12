@@ -1,0 +1,17 @@
+{
+  "name": "Puissance moyenne",
+  "unique_id": "nilm_frigo_puissance",
+  "state_topic": "nilm/maison/etat",
+  "value_template": "{{ (value.split(';')[1] | float(0) * 4) | round(0) }}",
+  "unit_of_measurement": "W",
+  "device_class": "power",
+  "state_class": "measurement",
+  "expire_after": 1800,
+  "device": {
+    "identifiers": [
+      "frigo"
+    ],
+    "name": "Frigo",
+    "suggested_area": "Cuisine"
+  }
+}

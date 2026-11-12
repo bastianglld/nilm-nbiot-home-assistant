@@ -1,0 +1,16 @@
+{
+  "name": "Relais",
+  "unique_id": "nilm_chauffe_eau_relais",
+  "command_topic": "nilm/maison/cmd/chauffe_eau",
+  "state_topic": "nilm/maison/cmd/chauffe_eau/etat",
+  "qos": 1,
+  "retain": true,
+  "optimistic": false,
+  "icon": "mdi:water-boiler",
+  "device": {
+    "identifiers": [
+      "chauffe_eau"
+    ],
+    "name": "Chauffe-eau"
+  }
+}

@@ -1,0 +1,188 @@
+title: Détail Salon
+path: salon
+subview: true
+type: sections
+max_columns: 3
+dense_section_placement: true
+sections:
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: Aujourd'hui
+    icon: mdi:sofa
+  - type: statistic
+    name: Total salon
+    entity: sensor.total_energie_salon
+    icon: mdi:lightning-bolt
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+  - type: statistic
+    name: TV
+    entity: sensor.energie_tv
+    icon: mdi:flash
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+  - type: statistic
+    name: Console
+    entity: sensor.energie_console
+    icon: mdi:flash
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+- type: grid
+  cards:
+  - type: heading
+    heading: Répartition (jour)
+    icon: mdi:chart-donut
+  - type: custom:apexcharts-card
+    chart_type: donut
+    graph_span: 1d
+    span:
+      start: day
+    update_interval: 5min
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 260
+      stroke:
+        width: 2
+        colors:
+        - '#0B0F1A'
+      legend:
+        position: bottom
+      plotOptions:
+        pie:
+          donut:
+            size: 62%
+            labels:
+              show: true
+              value:
+                formatter: EVAL:(v) => Number(v).toFixed(1)
+              total:
+                show: true
+                label: kWh
+                formatter: EVAL:(w) => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1)
+      dataLabels:
+        formatter: EVAL:(p) => Math.round(p) + ' %'
+    all_series_config:
+      statistics:
+        type: change
+        period: 5minute
+      group_by:
+        func: sum
+        duration: 1d
+      float_precision: 1
+    series:
+    - entity: sensor.energie_tv
+      name: TV
+      color: '#40C4FF'
+    - entity: sensor.energie_console
+      name: Console
+      color: '#69F0AE'
+- type: grid
+  column_span: 2
+  cards:
+  - type: heading
+    heading: 7 derniers jours
+    icon: mdi:calendar-week
+  - type: custom:apexcharts-card
+    graph_span: 7d
+    span:
+      end: day
+    update_interval: 5min
+    stacked: true
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 260
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: ddd dd
+      yaxis:
+        decimalsInFloat: 1
+        title:
+          text: kWh
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: day
+        align: start
+    series:
+    - entity: sensor.energie_tv
+      name: TV
+      color: '#40C4FF'
+    - entity: sensor.energie_console
+      name: Console
+      color: '#69F0AE'
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: Dernières 24 h
+    icon: mdi:chart-bar
+  - type: custom:apexcharts-card
+    graph_span: 24h
+    update_interval: 5min
+    stacked: true
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 240
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: HH:mm
+      yaxis:
+        decimalsInFloat: 1
+        title:
+          text: kWh
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: 5minute
+        align: start
+      group_by:
+        func: sum
+        duration: 1h
+    series:
+    - entity: sensor.energie_tv
+      name: TV
+      color: '#40C4FF'
+    - entity: sensor.energie_console
+      name: Console
+      color: '#69F0AE'

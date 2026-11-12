@@ -1,0 +1,17 @@
+{
+  "name": "Énergie estimée",
+  "unique_id": "nilm_bouilloire_energie",
+  "state_topic": "nilm/maison/etat",
+  "value_template": "{{ (value.split(';')[2] | float(0) / 1000) | round(3) }}",
+  "last_reset_value_template": "{% set h = value.split(';')[0] %}{% set t = today_at(h[:2] ~ ':' ~ h[2:]) %}{{ (t - timedelta(days=1) if t > now() else t).isoformat() }}",
+  "unit_of_measurement": "kWh",
+  "device_class": "energy",
+  "state_class": "total",
+  "device": {
+    "identifiers": [
+      "bouilloire"
+    ],
+    "name": "Bouilloire",
+    "suggested_area": "Cuisine"
+  }
+}
