@@ -145,7 +145,8 @@ class FauxST87M01:
                 return erreur
             topic = cmd.split("=", 1)[1].split(",")[0].strip('"')
             self.abonnements.append(topic)
-            return ok + [f"#MQTTRECV: {topic}, {self.plan}"]
+            recu = topic[:-1] + "plan" if topic.endswith("/+") else topic  # le broker envoie le planning retenu
+            return ok + [f"#MQTTRECV: {recu}, {self.plan}"]
         if c == "AT#MQTTDISC":
             self.connecte = False
             return ok
