@@ -24,13 +24,14 @@ class FauxST87M01:
     """Même interface que TransportSerie : ecrire(texte), lire_ligne(delai), fermer()."""
 
     def __init__(self, horloge=None, sim=True, refus=False, couverture=True, attache_apres=40.0,
-                 rsrp=50, rsrq=20, broker_ok=True, muet=False, echo=False, veille=1, ping_ok=True,
+                 rsrp=50, rsrq=20, broker_ok=True, muet=False, echo=False, veille=1, ping_ok=True, endormi=0,
                  plan="2101;R;000003;0002AAAAA005;22;22"):
         self.h = horloge or HorlogeSimulee()
         self.sim, self.refus, self.couverture = sim, refus, couverture
         self.attache_apres, self.rsrp, self.rsrq = attache_apres, rsrp, rsrq
         self.broker_ok, self.muet, self.echo, self.veille, self.plan = broker_ok, muet, echo, veille, plan
         self.ping_ok = ping_ok
+        self.endormi = endormi  # nombre de commandes perdues au réveil (veille DRX ou PSM)
         self.debut_radio = self.h.maintenant()
         self.sortie = [] if muet else ["", "#SYSSTART"]
         self.recues = []  # commandes reçues, pour les tests
@@ -46,6 +47,10 @@ class FauxST87M01:
             cmd = cmd.strip()
             if cmd:
                 self.recues.append(cmd)
+                if self.endormi > 0 and not self.muet:
+                    self.endormi -= 1
+                    self.sortie.append("#WAKEUP DRX")  # la commande réveille le module mais se perd
+                    continue
                 if not self.muet:
                     if self.echo:
                         self.sortie.append(cmd)
@@ -84,6 +89,9 @@ class FauxST87M01:
             return ["ST87M01 (faux module)", "OK"]
         if c == "AT+CGMR":
             return ["FAUX-1.0.0", "OK"]
+        if c.startswith("AT#SLEEPMODE="):
+            self.veille = int(c.split("=", 1)[1].split(",")[0])
+            return ok
         if c == "AT#SLEEPMODE?":
             return [f"#SLEEPMODE: {self.veille},10,0", "OK"]
         if c == "AT#SIMST?":

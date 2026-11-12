@@ -122,6 +122,18 @@ class TestSeance(unittest.TestCase):
         self.assertEqual(tj.ping_recus("#IPPING: 3,2,1,1518,2210,1790"), 2)
         self.assertIsNone(tj.ping_recus(None))
 
+    def test_module_endormi(self):
+        # cas vu à la fac le 12 nov : le premier AT ne fait que réveiller le module
+        r, module = lancer(endormi=1)
+        self.assertTrue(r.reussi, r.etapes)
+        self.assertEqual(module.recues[:2], ["AT", "AT"])
+
+    def test_veille_desactivee(self):
+        r, module = lancer()
+        self.assertIn("AT#SLEEPMODE=0", module.recues)
+        r, module = lancer(["--garder-veille"])
+        self.assertNotIn("AT#SLEEPMODE=0", module.recues)
+
     def test_echo_active(self):
         r, _ = lancer(echo=True)
         self.assertTrue(r.reussi, r.etapes)
