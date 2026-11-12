@@ -1,0 +1,15 @@
+# À ajouter dans configuration.yaml : allège la base de données de Home Assistant
+recorder:
+  commit_interval: 30        # écrit en base toutes les 30 s au lieu de chaque seconde
+  purge_keep_days: 7         # 7 jours d'historique détaillé ; les statistiques long terme restent
+  exclude:
+    domains:
+      - update
+      - automation
+      - script
+    entity_globs:
+      - sensor.sun_*
+
+# Active le dossier de thèmes (themes/nilm_neon.yaml)
+frontend:
+  themes: !include_dir_merge_named themes

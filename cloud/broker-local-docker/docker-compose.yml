@@ -1,0 +1,12 @@
+# Broker de test sur un PC, avec Docker : docker compose up -d
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883", "8883:8883"]
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./acl:/mosquitto/config/acl
+      - ./passwd:/mosquitto/config/passwd   # créé à l'étape 1 du README, non versionné
+      - ./certs:/mosquitto/certs            # créé à l'étape 2 du README, non versionné
+      - ./data:/mosquitto/data
+    restart: unless-stopped

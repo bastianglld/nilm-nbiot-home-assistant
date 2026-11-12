@@ -1,0 +1,120 @@
+title: Détail Chambre
+path: chambre
+subview: true
+type: sections
+max_columns: 3
+dense_section_placement: true
+sections:
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: Aujourd'hui
+    icon: mdi:bed
+  - type: statistic
+    name: Total chambre
+    entity: sensor.total_energie_chambre
+    icon: mdi:lightning-bolt
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+  - type: statistic
+    name: Chauffage
+    entity: sensor.energie_chauffage
+    icon: mdi:flash
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: 7 derniers jours
+    icon: mdi:calendar-week
+  - type: custom:apexcharts-card
+    graph_span: 7d
+    span:
+      end: day
+    update_interval: 5min
+    stacked: true
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 260
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: ddd dd
+      yaxis:
+        decimalsInFloat: 1
+        title:
+          text: kWh
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: day
+        align: start
+    series:
+    - entity: sensor.energie_chauffage
+      name: Chauffage
+      color: '#FF2E97'
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: Dernières 24 h
+    icon: mdi:chart-bar
+  - type: custom:apexcharts-card
+    graph_span: 24h
+    update_interval: 5min
+    stacked: true
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 240
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: HH:mm
+      yaxis:
+        decimalsInFloat: 1
+        title:
+          text: kWh
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: 5minute
+        align: start
+      group_by:
+        func: sum
+        duration: 1h
+    series:
+    - entity: sensor.energie_chauffage
+      name: Chauffage
+      color: '#FF2E97'

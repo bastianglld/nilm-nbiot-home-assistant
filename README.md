@@ -40,7 +40,7 @@ L'IA est répartie en deux niveaux :
 | Capteur de courant | Bastian | À intégrer |
 | Étude des protocoles et choix du NB-IoT | Merveil | Fait : [docs/etude_protocoles_nbiot.md](docs/etude_protocoles_nbiot.md), [ADR 0002](docs/adr/0002-nbiot-liaison-boitier-serveur.md), [hébergement joignable depuis le NB-IoT](docs/hebergement_joignabilite.md) |
 | Module NB-IoT ST87M01 | Merveil | Procédure de test du kit prête : [firmware/tests_st87m01/jour1_kit.md](firmware/tests_st87m01/jour1_kit.md) ; tests dès réception du kit (S3) |
-| Broker MQTT TLS et Home Assistant | Mathieu | À intégrer dans [`cloud/`](cloud/) et [`homeassistant/`](homeassistant/) |
+| Broker MQTT TLS et Home Assistant | Mathieu | Fait avec le simulateur : broker TLS sur VPS Azure ([`cloud/`](cloud/)), pont, dashboard, notifications et délestage HC/HP ([`homeassistant/`](homeassistant/)) |
 
 ## Résultats principaux
 

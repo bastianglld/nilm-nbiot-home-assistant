@@ -1,0 +1,437 @@
+title: Accueil
+path: accueil
+icon: mdi:lightning-bolt
+type: sections
+max_columns: 3
+dense_section_placement: true
+sections:
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: Aujourd'hui
+    icon: mdi:flash
+  - type: statistic
+    name: Électricité
+    entity: sensor.total_energie_maison
+    icon: mdi:home-lightning-bolt
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+  - type: custom:apexcharts-card
+    grid_options:
+      columns: 6
+      rows: 2
+    graph_span: 1d
+    span:
+      start: day
+    update_interval: 5min
+    header:
+      show: true
+      title: Coût du jour
+      show_states: true
+      colorize_states: true
+    apex_config:
+      chart:
+        height: 70
+        sparkline:
+          enabled: true
+      fill:
+        type: gradient
+        gradient:
+          opacityFrom: 0.7
+          opacityTo: 0.05
+    series:
+    - entity: sensor.total_energie_maison
+      name: Aujourd'hui
+      unit: ' €'
+      color: '#FF2E97'
+      float_precision: 2
+      statistics:
+        type: change
+        period: 5minute
+      group_by:
+        func: sum
+        duration: 1d
+      transform: return x * 0.2016;
+      show:
+        in_chart: false
+    - entity: sensor.total_energie_maison
+      name: Par heure
+      unit: ' €'
+      color: '#FF2E97'
+      type: area
+      curve: smooth
+      statistics:
+        type: change
+        period: 5minute
+      group_by:
+        func: sum
+        duration: 1h
+      transform: return x * 0.2016;
+      show:
+        in_header: false
+  - type: statistic
+    name: Eau cuisine
+    entity: sensor.total_eau_cuisine
+    icon: mdi:water
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+  - type: statistic
+    name: Eau salle de bain
+    entity: sensor.total_eau_salle_de_bain
+    icon: mdi:shower
+    period:
+      calendar:
+        period: day
+    stat_type: change
+    grid_options:
+      columns: 6
+      rows: 2
+- type: grid
+  cards:
+  - type: heading
+    heading: Par pièce (jour)
+    icon: mdi:home-group
+  - type: custom:apexcharts-card
+    chart_type: donut
+    graph_span: 1d
+    span:
+      start: day
+    update_interval: 5min
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 280
+      stroke:
+        width: 2
+        colors:
+        - '#0B0F1A'
+      legend:
+        position: bottom
+      plotOptions:
+        pie:
+          donut:
+            size: 62%
+            labels:
+              show: true
+              value:
+                formatter: EVAL:(v) => Number(v).toFixed(1)
+              total:
+                show: true
+                label: kWh
+                formatter: EVAL:(w) => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1)
+      dataLabels:
+        formatter: EVAL:(p) => Math.round(p) + ' %'
+    all_series_config:
+      statistics:
+        type: change
+        period: 5minute
+      group_by:
+        func: sum
+        duration: 1d
+      float_precision: 1
+    series:
+    - entity: sensor.total_energie_cuisine
+      name: Cuisine
+      color: '#FFD740'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_salon
+      name: Salon
+      color: '#00E5FF'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_chambre
+      name: Chambre
+      color: '#FF2E97'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_salle_de_bain
+      name: Salle de bain
+      color: '#B388FF'
+      yaxis_id: kwh
+- type: grid
+  cards:
+  - type: heading
+    heading: Par appareil (7 j)
+    icon: mdi:podium
+  - type: custom:apexcharts-card
+    chart_type: donut
+    graph_span: 7d
+    span:
+      end: day
+    update_interval: 5min
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 280
+      stroke:
+        width: 2
+        colors:
+        - '#0B0F1A'
+      legend:
+        position: bottom
+      plotOptions:
+        pie:
+          donut:
+            size: 62%
+            labels:
+              show: true
+              value:
+                formatter: EVAL:(v) => Number(v).toFixed(1)
+              total:
+                show: true
+                label: kWh
+                formatter: EVAL:(w) => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1)
+      dataLabels:
+        formatter: EVAL:(p) => Math.round(p) + ' %'
+    all_series_config:
+      statistics:
+        type: change
+        period: hour
+      group_by:
+        func: sum
+        duration: 7d
+      float_precision: 1
+    series:
+    - entity: sensor.energie_frigo
+      name: Frigo
+      color: '#00E5FF'
+    - entity: sensor.energie_four
+      name: Four
+      color: '#FF6E40'
+    - entity: sensor.lave_vaisselle_energie_lv
+      name: Lave-vaisselle
+      color: '#FFD740'
+    - entity: sensor.energie_tv
+      name: TV
+      color: '#40C4FF'
+    - entity: sensor.energie_console
+      name: Console
+      color: '#69F0AE'
+    - entity: sensor.energie_chauffage
+      name: Chauffage
+      color: '#FF2E97'
+    - entity: sensor.energie_lave_linge
+      name: Lave-linge
+      color: '#B388FF'
+    - entity: sensor.energie_seche_serviette
+      name: Sèche-serviette
+      color: '#EA80FC'
+- type: grid
+  cards:
+  - type: heading
+    heading: Eau (7 j)
+    icon: mdi:water
+  - type: custom:apexcharts-card
+    graph_span: 7d
+    span:
+      end: day
+    update_interval: 5min
+    stacked: false
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 280
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: ddd
+      yaxis:
+        decimalsInFloat: 1
+        title:
+          text: L
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: day
+        align: start
+    series:
+    - entity: sensor.total_eau_cuisine
+      name: Cuisine
+      color: '#29B6F6'
+    - entity: sensor.total_eau_salle_de_bain
+      name: Salle de bain
+      color: '#4DD0E1'
+- type: grid
+  column_span: 2
+  cards:
+  - type: heading
+    heading: Dernières 24 h, heure par heure
+    icon: mdi:chart-bar-stacked
+  - type: custom:apexcharts-card
+    graph_span: 24h
+    update_interval: 5min
+    stacked: true
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 280
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: HH:mm
+      yaxis:
+        decimalsInFloat: 1
+        title:
+          text: kWh
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: 5minute
+        align: start
+      group_by:
+        func: sum
+        duration: 1h
+    series:
+    - entity: sensor.total_energie_cuisine
+      name: Cuisine
+      color: '#FFD740'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_salon
+      name: Salon
+      color: '#00E5FF'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_chambre
+      name: Chambre
+      color: '#FF2E97'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_salle_de_bain
+      name: Salle de bain
+      color: '#B388FF'
+      yaxis_id: kwh
+- type: grid
+  cards:
+  - type: heading
+    heading: En direct
+    icon: mdi:pulse
+  - type: custom:apexcharts-card
+    graph_span: 6h
+    update_interval: 1min
+    header:
+      show: true
+      title: Frigo en direct
+      show_states: true
+      colorize_states: true
+    apex_config:
+      chart:
+        height: 180
+      fill:
+        type: gradient
+        gradient:
+          shadeIntensity: 0.6
+          opacityFrom: 0.8
+          opacityTo: 0.05
+      stroke:
+        width: 3
+      grid:
+        show: false
+      yaxis:
+        show: false
+    series:
+    - entity: sensor.puissance_frigo
+      name: Puissance
+      type: area
+      curve: smooth
+      color: '#00E5FF'
+      group_by:
+        func: avg
+        duration: 5min
+- type: grid
+  column_span: 3
+  cards:
+  - type: heading
+    heading: 7 derniers jours
+    icon: mdi:calendar-week
+  - type: custom:apexcharts-card
+    graph_span: 7d
+    span:
+      end: day
+    update_interval: 5min
+    stacked: true
+    header:
+      show: false
+    apex_config:
+      chart:
+        height: 300
+      plotOptions:
+        bar:
+          borderRadius: 4
+          columnWidth: 60%
+      legend:
+        position: top
+      grid:
+        borderColor: rgba(138,155,196,0.12)
+      xaxis:
+        labels:
+          format: ddd dd
+    all_series_config:
+      type: column
+      statistics:
+        type: change
+        period: day
+        align: start
+    series:
+    - entity: sensor.total_energie_cuisine
+      name: Cuisine
+      color: '#FFD740'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_salon
+      name: Salon
+      color: '#00E5FF'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_chambre
+      name: Chambre
+      color: '#FF2E97'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_salle_de_bain
+      name: Salle de bain
+      color: '#B388FF'
+      yaxis_id: kwh
+    - entity: sensor.total_energie_maison
+      name: Coût (€)
+      type: line
+      curve: smooth
+      stroke_width: 3
+      color: '#FFFFFF'
+      yaxis_id: eur
+      transform: return x * 0.2016;
+    yaxis:
+    - id: kwh
+      decimals: 1
+      apex_config:
+        title:
+          text: kWh
+    - id: eur
+      opposite: true
+      decimals: 2
+      apex_config:
+        title:
+          text: €

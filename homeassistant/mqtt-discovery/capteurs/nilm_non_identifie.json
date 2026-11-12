@@ -1,0 +1,16 @@
+{
+  "name": "Non identifié",
+  "unique_id": "nilm_non_identifie",
+  "state_topic": "nilm/maison/etat",
+  "value_template": "{% set v = value.split(';') | map('float', 0) | list %}{{ ((v[5] - v[1] - v[2] - v[3] - v[4]) / 1000) | round(3) }}",
+  "last_reset_value_template": "{% set h = value.split(';')[0] %}{% set t = today_at(h[:2] ~ ':' ~ h[2:]) %}{{ (t - timedelta(days=1) if t > now() else t).isoformat() }}",
+  "unit_of_measurement": "kWh",
+  "device_class": "energy",
+  "state_class": "total",
+  "device": {
+    "identifiers": [
+      "maison_nilm"
+    ],
+    "name": "Maison (NILM)"
+  }
+}

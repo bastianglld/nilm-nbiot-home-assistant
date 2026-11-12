@@ -1,0 +1,16 @@
+{
+  "name": "Relais",
+  "unique_id": "nilm_chauffage_relais",
+  "command_topic": "nilm/maison/cmd/chauffage",
+  "state_topic": "nilm/maison/cmd/chauffage/etat",
+  "qos": 1,
+  "retain": true,
+  "optimistic": false,
+  "icon": "mdi:radiator",
+  "device": {
+    "identifiers": [
+      "chauffage_relais"
+    ],
+    "name": "Radiateur chambre"
+  }
+}

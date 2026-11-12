@@ -1,0 +1,15 @@
+# Les deux entrées utilisées par l'automatisation.
+# Soit les créer dans l'interface (Paramètres > Appareils et services > Entrées),
+# soit coller ce bloc dans configuration.yaml.
+input_select:
+  tarif_en_cours:
+    name: Tarif en cours
+    options:
+      - Heures creuses
+      - Heures pleines
+    icon: mdi:cash-clock
+
+input_boolean:
+  pilotage_automatique:
+    name: Pilotage automatique
+    icon: mdi:robot

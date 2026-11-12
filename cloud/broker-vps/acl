@@ -1,0 +1,27 @@
+# Droits par compte : voir docs/protocole_messages.md
+
+# Home Assistant : découverte MQTT, lit toutes les données, envoie les ordres aux relais
+user homeassistant
+topic readwrite homeassistant/#
+topic read nilm/#
+topic write nilm/maison/cmd/+
+
+# Carte NB-IoT : publie mesures, présence et état des relais, lit ses ordres et le planning
+user module_nbiot
+topic write nilm/maison/etat
+topic write nilm/maison/dispo
+topic read nilm/maison/cmd/+
+topic write nilm/maison/cmd/+/etat
+
+# EMS (flexibilite/ems_serveur.py) : lit les mesures, publie le planning et les conseils
+user ems
+topic read nilm/maison/etat
+topic write nilm/maison/cmd/plan
+topic write nilm/maison/conseils
+
+# Simulateur sur PC (à supprimer quand la carte tourne)
+user simulateur
+topic write nilm/maison/etat
+topic write nilm/maison/dispo
+topic write nilm/maison/cmd/+/etat
+topic write homeassistant/#
