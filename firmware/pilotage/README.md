@@ -49,3 +49,20 @@ python simulateur_tic.py envoyer --port /dev/tty.usbmodem102 --8n1 --retour --pu
 ```
 
 La LED rouge suit le chauffe-eau : allumée de 22 h à 2 h, éteinte ensuite, rallumée par l'ordre de 10 h 15.
+
+## Essai sur la carte (12 novembre 2026)
+
+Programme complet `tic_test` (NILM sur le NPU), simulateur à 2 trames par seconde, une minute simulée par trame (du 20 janvier 13 h au 21 janvier 11 h en 11 minutes), commande ci-dessus avec `--debut "2026-01-20 13:00:00" --periode 0.5 --accel 120 --nb 1320`, planning après la trame 30, ordre `ON` du chauffe-eau après la trame 1275, ordre `OFF` du radiateur après la trame 1290.
+
+| Heure simulée | Attendu | Carte | LED rouge |
+|---|---|---|---|
+| 13:00 | secours : chauffe-eau coupé, radiateur autorisé, batterie au repos | `RELAIS 1300 chauffe_eau OFF (secours)`, `chauffage ON`, `BATTERIE repos` + confirmations | éteinte |
+| 13:30 | planning du 21 reçu, gardé pour le lendemain | `RECU nilm/maison/cmd/plan : planning ok` | éteinte |
+| 22:00 | secours, heures creuses | `RELAIS 2200 chauffe_eau ON (secours)` | allumée |
+| 00:00 | planning du 21 : chauffe 0 h - 2 h, batterie en charge | `BATTERIE 0000 charge` | allumée |
+| 02:00 | fin de chauffe du planning | `RELAIS 0200 chauffe_eau OFF (plan)`, `BATTERIE 0200 repos` | éteinte |
+| 06:00 | décharge de 6 h à 17 h | `BATTERIE 0600 decharge` | éteinte |
+| 10:14 | ordre ON de Home Assistant | `ordre ok`, `RELAIS 1014 chauffe_eau ON (ordre)` | allumée |
+| 10:29 | ordre OFF du radiateur | `ordre ok`, `RELAIS 1029 chauffage OFF (ordre)` | - |
+
+Tout est conforme, et le NILM continue en parallèle (6,0 ms par calcul, un message par quart d'heure, total de 200 Wh pour 800 VA). Avec une puissance constante, irréaliste pour une maison, le modèle attribue par moments 50 à 80 Wh au lave-linge : cet essai ne vérifie que le pilotage.
