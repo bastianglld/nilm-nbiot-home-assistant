@@ -10,6 +10,7 @@ Responsable : Merveil Joresse N'Goulou Wamena (B) pour le module NB-IoT ST87M01,
 | [`tic/`](tic/) | Simulateur TIC Linky pour tester le décodeur de la carte sans compteur | Bastian (C) |
 | [`mesure_vi/`](mesure_vi/) | Calcul de Vrms, Irms, P, S et facteur de puissance à partir de l'ADC (pince et adaptateur secteur), validé au générateur | Bastian (C) |
 | [`nilm_carte/`](nilm_carte/) | Programme complet de la carte : source TIC ou mesure V/I, NILM (processeur ou NPU) toutes les 15 minutes, message par une seule fonction d'envoi ; référence PC et validations | Bastian (C) |
+| [`pilotage/`](pilotage/) | Planning de l'EMS et ordres de Home Assistant reçus par la carte : relais du chauffe-eau, batterie, secours, confirmations | Bastian (C) |
 | [`nilm_npu/`](nilm_npu/) | Modèle NILM sur le NPU Neural-ART : projet de validation d'ST adapté, puis génération sans mémoire externe pour le programme complet | Bastian (C) |
 
 ## Ce qui arrive
@@ -18,4 +19,4 @@ Ce dossier accueillera aussi le code de la NUCLEO-N657X0-Q :
 
 - pilote AT du ST87M01 sur le STM32 (la même séquence que `test_jour1.py`, en C), par Merveil ;
 - branchement de la pince SCT-013 et de l'adaptateur 9 V sur la mesure V/I déjà validée au générateur, par Bastian ;
-- envoi des mesures et décodage du planning reçu (formats dans [`../docs/protocole_messages.md`](../docs/protocole_messages.md)).
+- envoi des mesures et réception des messages par le ST87M01 : `appli_message_recu()` et `publier()` dans `nilm_carte/appli_nilm.c` sont les points de raccordement (formats dans [`../docs/protocole_messages.md`](../docs/protocole_messages.md)).
