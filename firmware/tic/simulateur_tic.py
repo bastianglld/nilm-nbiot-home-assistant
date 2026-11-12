@@ -357,6 +357,11 @@ def cmd_envoyer(a):
                 if journal:
                     journal.write(texte + "\n"); journal.flush()
 
+    messages_mqtt = {}                             # --mqtt "N topic message" : envoyé à la carte après la trame N
+    for m in a.mqtt or []:
+        n_trame, topic, texte = m.split(maxsplit=2)
+        messages_mqtt.setdefault(int(n_trame), []).append(f"MQTT {topic} {texte}\r\n".encode("ascii"))
+
     pas = a.periode * a.accel                      # secondes simulées entre deux trames
     print(f"mode {a.mode} ({DEBIT[a.mode]} bauds, 7E1{' émulé en 8N1' if a.mode_8n1 else ''}), offre {a.offre}, "
           f"une trame toutes les {a.periode} s, {pas:g} s simulées par trame", file=sys.stderr)
@@ -380,6 +385,12 @@ def cmd_envoyer(a):
                 print(f"{t:%H:%M:%S}  S = {s_va:6.0f} VA  {len(trame)} octets  {note}", file=sys.stderr)
             cpt.avancer(s_va, pas, t)
             n += 1
+            for ligne in messages_mqtt.get(n, []):           # messages MQTT simulés, après la trame n
+                if port:
+                    port.write(ligne); port.flush()
+                if sortie:
+                    sortie.write(ligne)
+                print(f"pc    > {ligne.decode().strip()}", file=sys.stderr)
             if port and (a.nb is None or n < a.nb):
                 time.sleep(a.periode)
             lire_retour()
@@ -479,6 +490,8 @@ def main(argv=None):
     e.add_argument("--graine", type=int, default=0)
     e.add_argument("--8n1", dest="mode_8n1", action="store_true", help="émuler le 7E1 sur un port réglé en 8N1")
     e.add_argument("--afficher", action="store_true", help="afficher chaque trame envoyée")
+    e.add_argument("--mqtt", action="append", metavar="'N TOPIC MESSAGE'",
+                   help="message MQTT simulé (planning, ordre) envoyé à la carte après la trame N ; répétable")
     e.set_defaults(fonction=cmd_envoyer)
 
     l = sp.add_parser("lire", help="lire, vérifier et afficher des trames")

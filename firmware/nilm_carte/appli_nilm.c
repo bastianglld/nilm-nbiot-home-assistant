@@ -7,12 +7,13 @@
 #include "mesure_vi.h"
 #include "nilm_flux.h"
 #include "nilm_ia.h"
+#include "pilotage.h"
 
 /* ------------------------------------------------------------------ étalonnage de la mesure */
 #define ADC_VOLTS_PAR_POINT  (1.8f / 4096.0f)  /* référence de l'ADC du STM32N6 : 1,8 V */
 #define RAPPORT_CARTE        0.54f             /* ampli de la carte entre A0/A1 et PA8/PA9 (mesuré au GBF) */
 #define V_CONNECTEUR         (ADC_VOLTS_PAR_POINT / RAPPORT_CARTE)   /* volts sur le connecteur par point ADC */
-#define CORRECTION_V         1.0f              /* à régler au multimètre (écart de 4,6 % commun aux deux voies au GBF) */
+#define CORRECTION_V         1.0f              /* validé à l'oscilloscope le 6 novembre : pas de correction */
 #define CORRECTION_I         1.0f
 
 #if CAPTEURS_REELS
@@ -37,6 +38,11 @@ volatile float cadence_hz;               /* échantillons par seconde : ~4000 */
 volatile int32_t minute_vi;              /* minute courante en mode V/I */
 static volatile uint8_t minute_vi_prete;
 static uint32_t t_bloc;
+pilotage_t pil;                          /* planning, ordres, état des relais (pilotage.h) */
+volatile int32_t minute_actuelle = -1;   /* heure de la carte : TIC, ou mesure V/I, plus tard réseau NB-IoT */
+static int32_t minute_pilotee = -1;
+static char ligne_rx[96];                /* essais sur PC : lignes « MQTT <topic> <message> » reçues */
+static uint8_t ligne_rx_n;
 
 /* ------------------------------------------------------------------ envoi */
 /* Un seul point de sortie : aujourd'hui le port du ST-LINK (PC), demain la liaison vers le ST87M01. */
@@ -44,6 +50,82 @@ static void envoyer_message(const char *ligne)
 {
   if (HAL_UART_Transmit(&hcom_uart[COM1], (uint8_t *)ligne, (uint16_t)strlen(ligne), 100) != HAL_OK)
     nilm_envois_rates++;
+}
+
+/* Publication d'un message MQTT. Aujourd'hui : une ligne « MQTT <topic> <message> » vers le PC ;
+   demain : AT#MQTTPUB du ST87M01 (partie B). */
+static void publier(const char *topic, const char *message)
+{
+  char ligne[96];
+  snprintf(ligne, sizeof ligne, "MQTT %s %s\r\n", topic, message);
+  envoyer_message(ligne);
+}
+
+/* Relais d'un appareil flexible. Aujourd'hui : LED rouge pour le chauffe-eau ; demain : sortie vers le relais. */
+static void commander_relais(int appareil, uint8_t etat)
+{
+  if (appareil == PILOTAGE_CHAUFFE_EAU)
+  {
+    if (etat) BSP_LED_On(LED_RED); else BSP_LED_Off(LED_RED);
+  }
+}
+
+/* Décide l'état des appareils pour la minute actuelle ; commande et confirme ce qui a changé. */
+static void piloter(void)
+{
+  if (minute_actuelle < 0) return;
+  uint8_t batterie_avant = pil.batterie;
+  int premiere = (pil.minute < 0);
+  uint32_t change = pilotage_evaluer(&pil, minute_actuelle);
+  minute_pilotee = minute_actuelle;
+  int hh = (int)((minute_actuelle % 1440) / 60), mm = (int)(minute_actuelle % 60);
+  for (int a = 0; a < PILOTAGE_NB_APPAREILS; a++)
+  {
+    if (!(change & (1u << a))) continue;
+    commander_relais(a, pil.app[a].etat);
+    char topic[48], msg[8], info[64];
+    if (pilotage_confirmation(&pil, a, topic, sizeof topic, msg, sizeof msg) == 0) publier(topic, msg);
+    snprintf(info, sizeof info, "RELAIS %02d%02d %s %s (%s)\r\n", hh, mm, pilotage_nom(a), msg,
+             pilotage_nom_origine(pil.app[a].origine));
+    envoyer_message(info);
+  }
+  if (premiere || pil.batterie != batterie_avant)
+  {
+    static const char *const MODES[] = { "repos", "charge", "decharge" };
+    char info[48];
+    snprintf(info, sizeof info, "BATTERIE %02d%02d %s\r\n", hh, mm, MODES[pil.batterie % 3]);
+    envoyer_message(info);
+  }
+}
+
+/* Message MQTT reçu sur nilm/maison/cmd/+ : planning de l'EMS ou ordre de Home Assistant.
+   Point d'entrée pour le pilote du ST87M01 (partie B) ; sur PC, lignes « MQTT <topic> <message> ». */
+void appli_message_recu(const char *topic, const char *message)
+{
+  int r = pilotage_message(&pil, topic, message, minute_actuelle);
+  char info[64];
+  static const char *const RES[] = { "ignore", "planning ok", "ordre ok", "ordre deja recu" };
+  snprintf(info, sizeof info, "RECU %s : %s\r\n", topic, r < 0 ? "REJETE" : RES[r]);
+  envoyer_message(info);
+  if (r == PILOTAGE_RECU_PLAN || r == PILOTAGE_RECU_ORDRE) piloter();
+}
+
+/* Essais sur PC : une ligne de texte hors trame TIC (« MQTT nilm/maison/cmd/plan 2101;R;... ») */
+static void octet_ligne(uint8_t c)
+{
+  c &= 0x7F;
+  if (c == '\r' || c == '\n' || c == 0x02 || c == 0x03)
+  {
+    ligne_rx[ligne_rx_n] = 0;
+    if (ligne_rx_n > 5 && strncmp(ligne_rx, "MQTT ", 5) == 0)
+    {
+      char *topic = ligne_rx + 5, *msg = strchr(topic, ' ');
+      if (msg) { *msg++ = 0; appli_message_recu(topic, msg); }
+    }
+    ligne_rx_n = 0;
+    return;
+  }
+  if (ligne_rx_n < sizeof ligne_rx - 1) ligne_rx[ligne_rx_n++] = (char)c;
 }
 
 /* Une puissance datée -> NILM ; si une fenêtre est prête, le modèle tourne et le message part. */
@@ -85,6 +167,7 @@ void appli_init(void)
   tic_init(&tic);
   mesure_init(&mes, 4000, K_V, K_I, 60);
   nilm_flux_init(&nilm);
+  pilotage_init(&pil);
   envoyer_message("DEMARRAGE : init du modele...\r\n");
   nilm_etat_ia = nilm_ia_init();
   {
@@ -110,6 +193,7 @@ static void trame_tic_valide(void)
 {
   BSP_LED_Toggle(LED_GREEN);
   int32_t minute = nilm_minute_horodate(tic.horodate);
+  if (minute >= 0) minute_actuelle = minute;
 #if SOURCE_PUISSANCE == SOURCE_TIC
   puissance_vers_nilm(minute, (float)tic.papp_va);
 #else
@@ -125,6 +209,7 @@ void appli_pas(void)
   {
     nb_octets_recus++;
     if (tic_octet(&tic, octet) == TIC_TRAME_OK) trame_tic_valide();
+    octet_ligne(octet);
   }
   else if (st == HAL_ERROR)
   {
@@ -139,6 +224,7 @@ void appli_pas(void)
   {
     minute_vi_prete = 0;
     int32_t m = minute_vi++;                      /* minute qui vient de se terminer */
+    minute_actuelle = minute_vi;
     float s = mes.s_minute, p = mes.p_minute;
     /* une ligne par minute pour l'étalonnage : U (dV), I (cA), P (W), S (VA), fp (centièmes) */
     char ligne[96];
@@ -148,6 +234,7 @@ void appli_pas(void)
              (long)p, (long)s, (long)(mes.fp * 100.0f));
 #else
     /* essai au générateur : valeurs efficaces en millivolts sur le connecteur (A1 tension, A0 courant) */
+    (void)p;
     snprintf(ligne, sizeof ligne, "VI %02ld%02ld U=%ld mV I=%ld mV fp=%ld (centiemes)\r\n",
              (long)((m % 1440) / 60), (long)(m % 60), (long)(mes.vrms * 1000.0f), (long)(mes.irms * 1000.0f),
              (long)(mes.fp * 100.0f));
@@ -156,4 +243,6 @@ void appli_pas(void)
     puissance_vers_nilm(m, s);
   }
 #endif
+
+  if (minute_actuelle >= 0 && minute_actuelle != minute_pilotee) piloter();   /* une fois par minute */
 }

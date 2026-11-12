@@ -38,5 +38,6 @@
 void appli_init(void);                               /* après l'initialisation du port COM1, avant l'ADC */
 void appli_pas(void);                                /* à appeler en boucle dans while (1) */
 void appli_echantillon(uint16_t v_brut, uint16_t i_brut);   /* depuis l'interruption de l'ADC */
+void appli_message_recu(const char *topic, const char *message); /* message MQTT reçu sur nilm/maison/cmd/+ */
 
 #endif
