@@ -95,3 +95,5 @@ Programme `tic_test` régénéré avec PE11 (`RELAIS_BAT`) et PD12 (`RELAIS_CE`)
 | | `RELAIS 0200 chauffe_eau OFF (plan)`, `BATTERIE 0200 repos` | 3,3 V | 3,3 V |
 
 Conforme : 0 V = relais collé, 3,3 V = repos (essai fait avec `RELAIS_ACTIF_BAS` à 1, avant le choix du module Grove). Attention à bien attribuer les deux broches au FSBL dans CubeMX : une broche laissée « Free » n'est pas générée dans `main.h`.
+
+Même jour, avec le module **Grove 2-Channel SPDT Relay** branché (GND, VCC sur 5V, SIG1 sur D7, SIG2 sur D8, borniers à vide), `RELAIS_ACTIF_BAS` à 0 et niveau de départ *Low* : sur l'essai de la nuit, le relais 2 colle avec le chauffe-eau, le relais 1 pendant `BATTERIE 0000 charge`, et les deux se relâchent à 2 h. Conforme.
