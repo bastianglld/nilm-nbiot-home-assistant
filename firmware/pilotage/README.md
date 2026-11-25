@@ -99,3 +99,13 @@ Conforme : 0 V = relais collé, 3,3 V = repos (essai fait avec `RELAIS_ACTIF_BAS
 Même jour, avec le module **Grove 2-Channel SPDT Relay** branché (GND, VCC sur 5V, SIG1 sur D7, SIG2 sur D8, borniers à vide), `RELAIS_ACTIF_BAS` à 0 et niveau de départ *Low* : sur l'essai de la nuit, le relais 2 colle avec le chauffe-eau, le relais 1 pendant `BATTERIE 0000 charge`, et les deux se relâchent à 2 h. Conforme.
 
 Montage final : module relais branché sur un **Grove Base Shield** piqué sur le connecteur Arduino de la NUCLEO (interrupteur du shield sur 5V, câble dans la prise D7, qui sort D7 et D8). Essai conforme : planning reçu, relais 1 et 2 collés de 0 h à 2 h, relâchés à 2 h. Attention : après un redémarrage, la carte met une quinzaine de secondes à être prête ; un planning envoyé avant est perdu et la carte reste en secours. Pour l'essai de la nuit : `--debut "2026-01-20 23:00:00" --nb 200 --mqtt "50 nilm/maison/cmd/plan 2101;R;C00003;0002AAAAA005;22;22"`.
+
+### Chauffe-eau de démonstration : LED externe sur le relais 2
+
+Le chauffe-eau est représenté par une LED alimentée **à travers le contact du relais 2** (on voit ainsi que c'est bien le relais qui commute) :
+
+```
+5V du shield -> COM2 -> [relais 2] -> NO2 -> résistance 220 Ω -> LED (patte longue) ; LED (patte courte) -> GND
+```
+
+Rien sur NC2. Si la LED reste éteinte : vérifier la valeur de la résistance (220 Ω = rouge, rouge, marron ; une 22 kΩ, rouge, rouge, orange, éteint presque la LED) et que la résistance est bien sur NO2 (5 V seulement quand le relais est collé). Essai du 25 novembre conforme : la LED externe suit la LED rouge de la carte.
