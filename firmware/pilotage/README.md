@@ -79,3 +79,17 @@ Programme complet `tic_test` (NILM sur le NPU), simulateur à 2 trames par secon
 | 10:29 | ordre OFF du radiateur | `ordre ok`, `RELAIS 1029 chauffage OFF (ordre)` | - |
 
 Tout est conforme, et le NILM continue en parallèle (6,0 ms par calcul, un message par quart d'heure, total de 200 Wh pour 800 VA). Avec une puissance constante, irréaliste pour une maison, le modèle attribue par moments 50 à 80 Wh au lave-linge : cet essai ne vérifie que le pilotage.
+
+## Essai des sorties relais sur la carte (25 novembre 2026)
+
+Programme `tic_test` régénéré avec PE11 (`RELAIS_BAT`) et PD12 (`RELAIS_CE`) en sortie, attribuées au FSBL (*Pin Context Assignment*), niveau de départ *High*. Sans module relais : multimètre entre la broche et GND.
+
+| Essai (simulateur) | Ligne de la carte | D8 (chauffe-eau) | D7 (batterie) |
+|---|---|---|---|
+| Journée du 20 janvier 13 h au 21 janvier 11 h (commande ci-dessus, `--nb 1320`) | démarrage, `RELAIS 1300 chauffe_eau OFF (secours)` | 3,3 V | 3,3 V |
+| | `RELAIS 1014 chauffe_eau ON (ordre)`, LED rouge allumée | 0 V | 3,3 V |
+| Nuit du 20 au 21 janvier (`--debut "2026-01-20 23:50:00" --nb 160`, planning après la trame 3) | `BATTERIE 2350 repos` | 0 V (secours, heures creuses) | 3,3 V |
+| | `BATTERIE 0000 charge` | 0 V | 0 V |
+| | `RELAIS 0200 chauffe_eau OFF (plan)`, `BATTERIE 0200 repos` | 3,3 V | 3,3 V |
+
+Conforme : 0 V = relais collé, 3,3 V = repos. Attention à bien attribuer les deux broches au FSBL dans CubeMX : une broche laissée « Free » n'est pas générée dans `main.h`.
