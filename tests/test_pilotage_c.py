@@ -274,6 +274,7 @@ class AppliSurPC(unittest.TestCase):
                         "-I", str(fw / "tic"), "-I", str(fw / "mesure_vi"),
                         str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"),
                         str(fw / "nilm_carte" / "appli_nilm.c"), str(fw / "nilm_carte" / "nilm_flux.c"),
+                        str(fw / "nilm_carte" / "envoi_groupe.c"),
                         str(fw / "tic" / "tic_decodeur.c"), str(fw / "mesure_vi" / "mesure_vi.c"),
                         "-lm", "-o", str(essai_bas)], check=True)
         sortie_bas = subprocess.run([str(essai_bas), str(flux)], check=True, capture_output=True, text=True).stdout
