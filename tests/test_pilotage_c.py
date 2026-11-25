@@ -225,3 +225,17 @@ class AppliSurPC(unittest.TestCase):
             "RECU nilm/maison/cmd/chauffe_eau/etat : ignore", "BATTERIE 1700 repos"]
         self.assertEqual(lignes, attendu)
         self.assertGreater(sum(l.startswith("NILM ") for l in sortie.splitlines()), 100)   # le NILM tourne toujours
+        # sorties relais, actives à l'état bas : RELAIS_BAT (D7) collé en charge seulement, RELAIS_CE (D8) suit le chauffe-eau
+        gpio = [l.strip() for l in sortie.splitlines() if l.startswith(("GPIO", "RELAIS", "BATTERIE"))]
+        gpio_attendu = [
+            "GPIO RELAIS_BAT 1", "GPIO RELAIS_CE 1",                                   # démarrage : tout au repos
+            "GPIO RELAIS_CE 1", "RELAIS 1200 chauffe_eau OFF (secours)", "RELAIS 1200 chauffage ON (secours)",
+            "GPIO RELAIS_BAT 1", "BATTERIE 1200 repos",
+            "GPIO RELAIS_CE 0", "RELAIS 2200 chauffe_eau ON (secours)",
+            "GPIO RELAIS_BAT 0", "BATTERIE 0000 charge",
+            "GPIO RELAIS_CE 1", "RELAIS 0200 chauffe_eau OFF (plan)",
+            "GPIO RELAIS_BAT 1", "BATTERIE 0200 repos", "GPIO RELAIS_BAT 1", "BATTERIE 0600 decharge",
+            "GPIO RELAIS_CE 0", "RELAIS 1014 chauffe_eau ON (ordre)",
+            "RELAIS 1259 chauffage OFF (ordre)",
+            "GPIO RELAIS_BAT 1", "BATTERIE 1700 repos"]
+        self.assertEqual(gpio, gpio_attendu)

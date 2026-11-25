@@ -18,3 +18,13 @@ HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef*, const uint8_t*, uint16_
 HAL_StatusTypeDef HAL_UART_Receive(UART_HandleTypeDef*, uint8_t*, uint16_t, uint32_t);
 void BSP_LED_On(int); void BSP_LED_Off(int); void BSP_LED_Toggle(int);
 uint32_t HAL_GetTick(void);
+
+/* Sorties relais (étiquettes CubeMX RELAIS_BAT et RELAIS_CE) : sur PC, chaque écriture affiche une ligne « GPIO … » */
+typedef struct { const char *nom; } GPIO_TypeDef;
+typedef enum { GPIO_PIN_RESET = 0, GPIO_PIN_SET = 1 } GPIO_PinState;
+extern GPIO_TypeDef essai_port_bat, essai_port_ce;
+#define RELAIS_BAT_GPIO_Port (&essai_port_bat)
+#define RELAIS_BAT_Pin       ((uint16_t)0x0800)   /* PE11 */
+#define RELAIS_CE_GPIO_Port  (&essai_port_ce)
+#define RELAIS_CE_Pin        ((uint16_t)0x1000)   /* PD12 */
+void HAL_GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState etat);
