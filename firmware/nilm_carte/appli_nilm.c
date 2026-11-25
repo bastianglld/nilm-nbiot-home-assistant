@@ -9,6 +9,7 @@
 #include "nilm_ia.h"
 #include "pilotage.h"
 #include "envoi_groupe.h"
+#include "batterie_virtuelle.h"
 
 /* ------------------------------------------------------------------ étalonnage de la mesure */
 #define ADC_VOLTS_PAR_POINT  (1.8f / 4096.0f)  /* référence de l'ADC du STM32N6 : 1,8 V */
@@ -107,6 +108,28 @@ static void commander_batterie(uint8_t mode)
   sortie_relais(1, (uint8_t)(mode == 1));
 }
 
+/* ------------------------------------------------------------------ batterie virtuelle et jauge
+ * La carte suit le niveau d'une batterie domestique simulée (mêmes paramètres que l'EMS : 5 kWh, 2,5 kW),
+ * minute par minute, avec le mode décidé par le pilotage et la consommation mesurée de la maison.
+ * Jauge de 5 LED, actives à l'état haut (LED + résistance 220 Ω vers GND) :
+ *   D2 = PD0 (JAUGE1, la plus basse), D3 = PE9 (JAUGE2), D4 = PE0 (JAUGE3), D5 = PE10 (JAUGE4), D6 = PD5 (JAUGE5).
+ * Dans CubeMX : GPIO_Output, contexte FSBL, niveau de départ Low, étiquettes JAUGE1 à JAUGE5. */
+static batterie_virtuelle_t bv;
+static float conso_minute_w;              /* puissance de la maison sur la dernière minute (TIC ou mesure) */
+static int jauge_affichee = -1;
+
+static void afficher_jauge(int n)
+{
+#if defined(JAUGE1_Pin) && defined(JAUGE2_Pin) && defined(JAUGE3_Pin) && defined(JAUGE4_Pin) && defined(JAUGE5_Pin)
+  GPIO_TypeDef *const ports[5] = { JAUGE1_GPIO_Port, JAUGE2_GPIO_Port, JAUGE3_GPIO_Port, JAUGE4_GPIO_Port,
+                                   JAUGE5_GPIO_Port };
+  const uint16_t broches[5] = { JAUGE1_Pin, JAUGE2_Pin, JAUGE3_Pin, JAUGE4_Pin, JAUGE5_Pin };
+  for (int i = 0; i < 5; i++) HAL_GPIO_WritePin(ports[i], broches[i], i < n ? GPIO_PIN_SET : GPIO_PIN_RESET);
+#else
+  (void)n;
+#endif
+}
+
 /* Décide l'état des appareils pour la minute actuelle ; commande et confirme ce qui a changé. */
 static void piloter(void)
 {
@@ -132,6 +155,16 @@ static void piloter(void)
     char info[48];
     commander_batterie(pil.batterie);
     snprintf(info, sizeof info, "BATTERIE %02d%02d %s\r\n", hh, mm, MODES[pil.batterie % 3]);
+    envoyer_message(info);
+  }
+  bv_minute(&bv, pil.batterie, conso_minute_w);   /* une minute de batterie virtuelle */
+  int n = bv_niveau(&bv, 5);
+  if (n != jauge_affichee)
+  {
+    char info[48];
+    jauge_affichee = n;
+    afficher_jauge(n);
+    snprintf(info, sizeof info, "JAUGE %02d%02d %d %% (%d/5)\r\n", hh, mm, bv_pourcent(&bv), n);
     envoyer_message(info);
   }
 }
@@ -169,6 +202,7 @@ static void octet_ligne(uint8_t c)
 /* Une puissance datée -> NILM ; si une fenêtre est prête, le modèle tourne et le message part. */
 static void puissance_vers_nilm(int32_t minute, float puissance)
 {
+  conso_minute_w = puissance;
   if (!nilm_flux_mesure(&nilm, minute, puissance)) return;
   if (nilm_etat_ia != 0)
   {
@@ -236,6 +270,8 @@ void appli_init(void)
   mesure_init(&mes, 4000, K_V, K_I, 60);
   nilm_flux_init(&nilm);
   pilotage_init(&pil);
+  bv_init(&bv);
+  afficher_jauge(0);                       /* jauge éteinte tant que l'heure n'est pas connue */
   sortie_relais(1, 0);                     /* relais au repos tant que l'heure n'est pas connue */
   sortie_relais(2, 0);
   envoyer_message("DEMARRAGE : init du modele...\r\n");

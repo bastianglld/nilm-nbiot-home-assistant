@@ -28,3 +28,16 @@ extern GPIO_TypeDef essai_port_bat, essai_port_ce;
 #define RELAIS_CE_GPIO_Port  (&essai_port_ce)
 #define RELAIS_CE_Pin        ((uint16_t)0x1000)   /* PD12 */
 void HAL_GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState etat);
+
+/* Jauge de la batterie virtuelle (étiquettes CubeMX JAUGE1 à JAUGE5) */
+extern GPIO_TypeDef essai_port_j1, essai_port_j2, essai_port_j3, essai_port_j4, essai_port_j5;
+#define JAUGE1_GPIO_Port (&essai_port_j1)
+#define JAUGE1_Pin       ((uint16_t)0x0001)   /* PD0 */
+#define JAUGE2_GPIO_Port (&essai_port_j2)
+#define JAUGE2_Pin       ((uint16_t)0x0200)   /* PE9 */
+#define JAUGE3_GPIO_Port (&essai_port_j3)
+#define JAUGE3_Pin       ((uint16_t)0x0001)   /* PE0 */
+#define JAUGE4_GPIO_Port (&essai_port_j4)
+#define JAUGE4_Pin       ((uint16_t)0x0400)   /* PE10 */
+#define JAUGE5_GPIO_Port (&essai_port_j5)
+#define JAUGE5_Pin       ((uint16_t)0x0020)   /* PD5 */

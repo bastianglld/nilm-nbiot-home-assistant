@@ -38,7 +38,7 @@ class Pilotage(unittest.TestCase):
     def setUpClass(cls):
         so = Path(tempfile.mkdtemp()) / "libpilotage.so"
         subprocess.run(["gcc", "-Wall", "-Wextra", "-Werror", "-std=c11", "-O2", "-shared", "-fPIC", "-o", str(so),
-                        str(DOSSIER / "pilotage.c"), str(DOSSIER / "test_pc.c")], check=True)
+                        str(DOSSIER / "pilotage.c"), str(DOSSIER / "batterie_virtuelle.c"), str(DOSSIER / "test_pc.c")], check=True)
         cls.lib = lib = ctypes.CDLL(str(so))
         lib.pl_taille.restype = ctypes.c_size_t
         lib.pilotage_message.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int32]
@@ -194,7 +194,7 @@ class AppliSurPC(unittest.TestCase):
         subprocess.run(["gcc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-DNILM_AFFICHER_DUREE=0",
                         "-I", str(DOSSIER / "essai_pc"), "-I", str(DOSSIER), "-I", str(fw / "nilm_carte"),
                         "-I", str(fw / "tic"), "-I", str(fw / "mesure_vi"),
-                        str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"),
+                        str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"), str(DOSSIER / "batterie_virtuelle.c"),
                         str(fw / "nilm_carte" / "appli_nilm.c"), str(fw / "nilm_carte" / "nilm_flux.c"),
                         str(fw / "nilm_carte" / "envoi_groupe.c"),
                         str(fw / "tic" / "tic_decodeur.c"), str(fw / "mesure_vi" / "mesure_vi.c"),
@@ -209,6 +209,14 @@ class AppliSurPC(unittest.TestCase):
                         "--mqtt", "1510 nilm/maison/cmd/chauffe_eau/etat ON"],
                        check=True, capture_output=True)
         sortie = subprocess.run([str(essai), str(flux)], check=True, capture_output=True, text=True).stdout
+        # batterie virtuelle : jauge de 5 LED, charge de 0 h à 2 h (2,5 kW), décharge à partir de 6 h (maison à 800 W)
+        jauge = [l.strip() for l in sortie.splitlines() if l.startswith("JAUGE")]
+        self.assertEqual(jauge, ["JAUGE 1200 50 % (3/5)", "JAUGE 0025 71 % (4/5)", "JAUGE 0050 90 % (5/5)",
+                                 "JAUGE 0635 90 % (4/5)", "JAUGE 0746 70 % (3/5)", "JAUGE 0858 50 % (2/5)",
+                                 "JAUGE 1009 30 % (1/5)"])
+        leds = [l.strip() for l in sortie.splitlines() if l.startswith("GPIO JAUGE")]
+        self.assertEqual(leds[:5], ["GPIO JAUGE%d 0" % i for i in range(1, 6)])                 # éteinte au départ
+        self.assertEqual(leds[5:10], ["GPIO JAUGE1 1", "GPIO JAUGE2 1", "GPIO JAUGE3 1", "GPIO JAUGE4 0", "GPIO JAUGE5 0"])
         lignes = [l.strip() for l in sortie.splitlines() if l.startswith(("RELAIS", "BATTERIE", "RECU", "MQTT"))
                   and not l.startswith("MQTT nilm/maison/etat")]
         # envoi groupé : chaque publication dans une connexion ; mesures par 4, confirmations tout de suite
@@ -252,7 +260,7 @@ class AppliSurPC(unittest.TestCase):
         self.assertGreater(sum(l.startswith("NILM ") for l in sortie.splitlines()), 100)   # le NILM tourne toujours
         # sorties relais (module Grove, actif à l'état haut par défaut) : RELAIS_BAT (D7) collé en charge seulement,
         # RELAIS_CE (D8) suit le chauffe-eau. Écrit pour un module actif à l'état bas, puis inversé.
-        gpio = [l.strip() for l in sortie.splitlines() if l.startswith(("GPIO", "RELAIS", "BATTERIE"))]
+        gpio = [l.strip() for l in sortie.splitlines() if l.startswith(("GPIO RELAIS", "RELAIS", "BATTERIE"))]
         gpio_attendu = [
             "GPIO RELAIS_BAT 1", "GPIO RELAIS_CE 1",                                   # démarrage : tout au repos
             "GPIO RELAIS_CE 1", "RELAIS 1200 chauffe_eau OFF (secours)", "RELAIS 1200 chauffage ON (secours)",
@@ -272,11 +280,11 @@ class AppliSurPC(unittest.TestCase):
         subprocess.run(["gcc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-DNILM_AFFICHER_DUREE=0", "-DRELAIS_ACTIF_BAS=1",
                         "-I", str(DOSSIER / "essai_pc"), "-I", str(DOSSIER), "-I", str(fw / "nilm_carte"),
                         "-I", str(fw / "tic"), "-I", str(fw / "mesure_vi"),
-                        str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"),
+                        str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"), str(DOSSIER / "batterie_virtuelle.c"),
                         str(fw / "nilm_carte" / "appli_nilm.c"), str(fw / "nilm_carte" / "nilm_flux.c"),
                         str(fw / "nilm_carte" / "envoi_groupe.c"),
                         str(fw / "tic" / "tic_decodeur.c"), str(fw / "mesure_vi" / "mesure_vi.c"),
                         "-lm", "-o", str(essai_bas)], check=True)
         sortie_bas = subprocess.run([str(essai_bas), str(flux)], check=True, capture_output=True, text=True).stdout
-        gpio_bas = [l.strip() for l in sortie_bas.splitlines() if l.startswith(("GPIO", "RELAIS", "BATTERIE"))]
+        gpio_bas = [l.strip() for l in sortie_bas.splitlines() if l.startswith(("GPIO RELAIS", "RELAIS", "BATTERIE"))]
         self.assertEqual(gpio_bas, gpio_attendu)
