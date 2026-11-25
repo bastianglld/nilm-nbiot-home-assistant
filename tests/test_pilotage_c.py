@@ -250,7 +250,8 @@ class AppliSurPC(unittest.TestCase):
             "RECU nilm/maison/cmd/chauffe_eau/etat : ignore", "BATTERIE 1700 repos"]
         self.assertEqual(lignes, attendu)
         self.assertGreater(sum(l.startswith("NILM ") for l in sortie.splitlines()), 100)   # le NILM tourne toujours
-        # sorties relais, actives à l'état bas : RELAIS_BAT (D7) collé en charge seulement, RELAIS_CE (D8) suit le chauffe-eau
+        # sorties relais (module Grove, actif à l'état haut par défaut) : RELAIS_BAT (D7) collé en charge seulement,
+        # RELAIS_CE (D8) suit le chauffe-eau. Écrit pour un module actif à l'état bas, puis inversé.
         gpio = [l.strip() for l in sortie.splitlines() if l.startswith(("GPIO", "RELAIS", "BATTERIE"))]
         gpio_attendu = [
             "GPIO RELAIS_BAT 1", "GPIO RELAIS_CE 1",                                   # démarrage : tout au repos
@@ -263,4 +264,19 @@ class AppliSurPC(unittest.TestCase):
             "GPIO RELAIS_CE 0", "RELAIS 1014 chauffe_eau ON (ordre)",
             "RELAIS 1259 chauffage OFF (ordre)",
             "GPIO RELAIS_BAT 1", "BATTERIE 1700 repos"]
-        self.assertEqual(gpio, gpio_attendu)
+        inverse = {"0": "1", "1": "0"}
+        gpio_attendu_haut = [l[:-1] + inverse[l[-1]] if l.startswith("GPIO") else l for l in gpio_attendu]
+        self.assertEqual(gpio, gpio_attendu_haut)
+        # même programme compilé pour un module actif à l'état bas (RELAIS_ACTIF_BAS=1)
+        essai_bas = tmp / "essai_bas"
+        subprocess.run(["gcc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-DNILM_AFFICHER_DUREE=0", "-DRELAIS_ACTIF_BAS=1",
+                        "-I", str(DOSSIER / "essai_pc"), "-I", str(DOSSIER), "-I", str(fw / "nilm_carte"),
+                        "-I", str(fw / "tic"), "-I", str(fw / "mesure_vi"),
+                        str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"),
+                        str(fw / "nilm_carte" / "appli_nilm.c"), str(fw / "nilm_carte" / "nilm_flux.c"),
+                        str(fw / "nilm_carte" / "envoi_groupe.c"),
+                        str(fw / "tic" / "tic_decodeur.c"), str(fw / "mesure_vi" / "mesure_vi.c"),
+                        "-lm", "-o", str(essai_bas)], check=True)
+        sortie_bas = subprocess.run([str(essai_bas), str(flux)], check=True, capture_output=True, text=True).stdout
+        gpio_bas = [l.strip() for l in sortie_bas.splitlines() if l.startswith(("GPIO", "RELAIS", "BATTERIE"))]
+        self.assertEqual(gpio_bas, gpio_attendu)

@@ -32,16 +32,18 @@ Sur le PC, la carte affiche aussi `RECU …`, `RELAIS hhmm appareil ON (plan|ord
 
 ## Sorties relais
 
-Module relais 2 voies optocouplé, **actif à l'état bas** (0 = relais collé), câblé comme dans le document remis au technicien :
+Module utilisé : **Grove 2-Channel SPDT Relay** (Seeed, deux relais SRD-05VDC-SL-C), commandé par transistor, **actif à l'état haut** (3,3 V = relais collé), alimenté en **5 V** (environ 90 mA par bobine). Réglage `RELAIS_ACTIF_BAS` dans `appli_nilm.c` : 0 pour ce module (défaut), 1 pour un module optocouplé à cavalier JD-VCC (0 V = relais collé).
 
-| Broche Arduino | Broche STM32 | Étiquette CubeMX | Entrée du module | Rôle |
+| Broche Arduino | Broche STM32 | Étiquette CubeMX | Module Grove | Rôle |
 |---|---|---|---|---|
-| D7 | PE11 | `RELAIS_BAT` | IN1 | coupe ou rétablit le +5 V USB de la batterie : collé seulement en mode **charge** |
-| D8 | PD12 | `RELAIS_CE` | IN2 | chauffe-eau (la LED rouge le montre aussi) |
+| D7 | PE11 | `RELAIS_BAT` | SIG1, relais 1 | +5 V USB de la batterie par COM1 et NO1 : collé seulement en mode **charge** |
+| D8 | PD12 | `RELAIS_CE` | SIG2, relais 2 | chauffe-eau (la LED rouge le montre aussi) |
+| 5V | – | – | VCC | alimentation des bobines |
+| GND | – | – | GND | masse commune |
 
-Dans CubeMX (`tic_test.ioc`) : les deux broches en **GPIO_Output**, avec ces étiquettes et un niveau de départ **High** (relais au repos), puis *Generate Code*. Au démarrage, la carte remet les deux relais au repos ; ils ne bougent qu'une fois l'heure connue. Tant que les étiquettes ne sont pas dans `main.h`, le programme compile sans les sorties : seules la LED et les lignes vers le PC montrent l'état.
+Dans CubeMX (`tic_test.ioc`) : les deux broches en **GPIO_Output**, attribuées au **FSBL** (*Pin Context Assignment*, sinon elles ne sont pas générées dans `main.h`), avec ces étiquettes et un niveau de départ **Low** pour le module Grove (relais au repos ; **High** pour un module actif à l'état bas), puis *Generate Code*. Au démarrage, la carte remet les deux relais au repos ; ils ne bougent qu'une fois l'heure connue. Tant que les étiquettes ne sont pas dans `main.h`, le programme compile sans les sorties : seules la LED et les lignes vers le PC montrent l'état.
 
-Vérification sans le module : multimètre ou LED (avec sa résistance) entre la broche et la masse. 3,3 V = relais au repos, 0 V = relais collé.
+Vérification sans le module : multimètre ou LED (avec sa résistance) entre la broche et la masse. Avec le module Grove : 3,3 V = relais collé, 0 V = repos.
 
 ## Essais
 
@@ -92,4 +94,4 @@ Programme `tic_test` régénéré avec PE11 (`RELAIS_BAT`) et PD12 (`RELAIS_CE`)
 | | `BATTERIE 0000 charge` | 0 V | 0 V |
 | | `RELAIS 0200 chauffe_eau OFF (plan)`, `BATTERIE 0200 repos` | 3,3 V | 3,3 V |
 
-Conforme : 0 V = relais collé, 3,3 V = repos. Attention à bien attribuer les deux broches au FSBL dans CubeMX : une broche laissée « Free » n'est pas générée dans `main.h`.
+Conforme : 0 V = relais collé, 3,3 V = repos (essai fait avec `RELAIS_ACTIF_BAS` à 1, avant le choix du module Grove). Attention à bien attribuer les deux broches au FSBL dans CubeMX : une broche laissée « Free » n'est pas générée dans `main.h`.
