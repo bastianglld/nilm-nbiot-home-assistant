@@ -34,6 +34,13 @@ HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *h, const uint8_t *o, uin
     return HAL_OK;
 }
 
+GPIO_TypeDef essai_port_bat = { "RELAIS_BAT" }, essai_port_ce = { "RELAIS_CE" };
+void HAL_GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState etat)
+{
+    (void)pin;
+    printf("GPIO %s %d\r\n", port->nom, (int)etat);
+}
+
 void BSP_LED_On(int l) { (void)l; }
 void BSP_LED_Off(int l) { (void)l; }
 void BSP_LED_Toggle(int l) { (void)l; }

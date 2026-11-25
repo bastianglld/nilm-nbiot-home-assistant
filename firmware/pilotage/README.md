@@ -25,10 +25,23 @@ L'heure est celle du NILM (minute depuis le 1er janvier 2000) : donnée par la T
 `appli_nilm.c` :
 
 - `appli_message_recu(topic, message)` : **point d'entrée pour le pilote du ST87M01** (partie B), à appeler pour chaque message reçu sur `nilm/maison/cmd/+` ;
-- chaque minute, `piloter()` décide l'état des appareils ; à chaque changement, `commander_relais()` (aujourd'hui la **LED rouge** pour le chauffe-eau, demain la sortie du relais) et `publier("nilm/maison/cmd/chauffe_eau/etat", "ON")` ;
+- chaque minute, `piloter()` décide l'état des appareils ; à chaque changement, `commander_relais()` (sortie D8 et **LED rouge** pour le chauffe-eau) ou `commander_batterie()` (sortie D7), puis `publier("nilm/maison/cmd/chauffe_eau/etat", "ON")` ;
 - `publier(topic, message)` : aujourd'hui une ligne `MQTT <topic> <message>` vers le PC, demain `AT#MQTTPUB`.
 
 Sur le PC, la carte affiche aussi `RECU …`, `RELAIS hhmm appareil ON (plan|ordre|secours)` et `BATTERIE hhmm mode`.
+
+## Sorties relais
+
+Module relais 2 voies optocouplé, **actif à l'état bas** (0 = relais collé), câblé comme dans le document remis au technicien :
+
+| Broche Arduino | Broche STM32 | Étiquette CubeMX | Entrée du module | Rôle |
+|---|---|---|---|---|
+| D7 | PE11 | `RELAIS_BAT` | IN1 | coupe ou rétablit le +5 V USB de la batterie : collé seulement en mode **charge** |
+| D8 | PD12 | `RELAIS_CE` | IN2 | chauffe-eau (la LED rouge le montre aussi) |
+
+Dans CubeMX (`tic_test.ioc`) : les deux broches en **GPIO_Output**, avec ces étiquettes et un niveau de départ **High** (relais au repos), puis *Generate Code*. Au démarrage, la carte remet les deux relais au repos ; ils ne bougent qu'une fois l'heure connue. Tant que les étiquettes ne sont pas dans `main.h`, le programme compile sans les sorties : seules la LED et les lignes vers le PC montrent l'état.
+
+Vérification sans le module : multimètre ou LED (avec sa résistance) entre la broche et la masse. 3,3 V = relais au repos, 0 V = relais collé.
 
 ## Essais
 
@@ -37,7 +50,7 @@ Sur PC (`python -m unittest tests.test_pilotage_c`) :
 - calendrier de la carte comparé à Python sur 40 ans ;
 - 300 plannings fabriqués par `ems_serveur.encoder_plan` décodés sans perte (chauffe-eau, batterie, couleur, départs) ; 10 plannings mal formés rejetés ;
 - secours, planning du jour et du lendemain, ordre jusqu'au prochain changement, ordre répété ignoré, radiateur, topics ignorés ;
-- programme complet de la carte compilé sur PC avec le flux du simulateur : planning reçu à 13 h 30, chauffe en secours à 22 h, passage au planning à minuit, ordre de Home Assistant, ordre répété, confirmations.
+- programme complet de la carte compilé sur PC avec le flux du simulateur : planning reçu à 13 h 30, chauffe en secours à 22 h, passage au planning à minuit, ordre de Home Assistant, ordre répété, confirmations, et niveau des sorties D7 et D8 à chaque changement.
 
 Sur la carte, avec le simulateur (`--mqtt "N topic message"` envoie un message MQTT simulé après la trame N) :
 
@@ -66,3 +79,17 @@ Programme complet `tic_test` (NILM sur le NPU), simulateur à 2 trames par secon
 | 10:29 | ordre OFF du radiateur | `ordre ok`, `RELAIS 1029 chauffage OFF (ordre)` | - |
 
 Tout est conforme, et le NILM continue en parallèle (6,0 ms par calcul, un message par quart d'heure, total de 200 Wh pour 800 VA). Avec une puissance constante, irréaliste pour une maison, le modèle attribue par moments 50 à 80 Wh au lave-linge : cet essai ne vérifie que le pilotage.
+
+## Essai des sorties relais sur la carte (25 novembre 2026)
+
+Programme `tic_test` régénéré avec PE11 (`RELAIS_BAT`) et PD12 (`RELAIS_CE`) en sortie, attribuées au FSBL (*Pin Context Assignment*), niveau de départ *High*. Sans module relais : multimètre entre la broche et GND.
+
+| Essai (simulateur) | Ligne de la carte | D8 (chauffe-eau) | D7 (batterie) |
+|---|---|---|---|
+| Journée du 20 janvier 13 h au 21 janvier 11 h (commande ci-dessus, `--nb 1320`) | démarrage, `RELAIS 1300 chauffe_eau OFF (secours)` | 3,3 V | 3,3 V |
+| | `RELAIS 1014 chauffe_eau ON (ordre)`, LED rouge allumée | 0 V | 3,3 V |
+| Nuit du 20 au 21 janvier (`--debut "2026-01-20 23:50:00" --nb 160`, planning après la trame 3) | `BATTERIE 2350 repos` | 0 V (secours, heures creuses) | 3,3 V |
+| | `BATTERIE 0000 charge` | 0 V | 0 V |
+| | `RELAIS 0200 chauffe_eau OFF (plan)`, `BATTERIE 0200 repos` | 3,3 V | 3,3 V |
+
+Conforme : 0 V = relais collé, 3,3 V = repos. Attention à bien attribuer les deux broches au FSBL dans CubeMX : une broche laissée « Free » n'est pas générée dans `main.h`.
