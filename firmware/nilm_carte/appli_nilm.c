@@ -18,8 +18,12 @@
 #define CORRECTION_I         1.0f
 
 #if CAPTEURS_REELS
-/* tension : adaptateur 230 V -> 9 V (rapport à mesurer au multimètre), pont R5 = 100 kΩ / R6 = 8,2 kΩ */
-#define K_V  (V_CONNECTEUR * CORRECTION_V * (100.0f + 8.2f) / 8.2f * (230.0f / 9.0f))
+/* tension : adaptateur Mascot 8510 (230 V -> 9 V AC, 780 mA), pont R5 = 100 kΩ / R6 = 8,2 kΩ.
+   Le secondaire donne plus que 9 V quand il ne débite presque rien : 10,7 V efficaces mesurés au multimètre
+   le 25 novembre, secteur supposé à 230 V. À affiner avec le wattmètre de prise (tension secteur réelle). */
+#define SECTEUR_V     230.0f
+#define SECONDAIRE_V  10.7f
+#define K_V  (V_CONNECTEUR * CORRECTION_V * (100.0f + 8.2f) / 8.2f * (SECTEUR_V / SECONDAIRE_V))
 /* courant : pince SCT-013-000 (rapport 2000) sur R3 = 22 Ω, SPIRES tours de fil dans la pince */
 #define SPIRES 1.0f
 #define K_I  (V_CONNECTEUR * CORRECTION_I / 22.0f * 2000.0f / SPIRES)
