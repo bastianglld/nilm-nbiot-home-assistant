@@ -61,13 +61,46 @@ static void publier(const char *topic, const char *message)
   envoi_urgent(&envoi, topic, message);
 }
 
-/* Relais d'un appareil flexible. Aujourd'hui : LED rouge pour le chauffe-eau ; demain : sortie vers le relais. */
+/* ------------------------------------------------------------------ sorties relais
+ * Deux voies de relais, câblées comme dans le document remis au technicien :
+ *   D7 = PE11, étiquette CubeMX RELAIS_BAT -> relais 1 : coupe ou rétablit le +5 V USB de la batterie externe ;
+ *   D8 = PD12, étiquette CubeMX RELAIS_CE  -> relais 2 : chauffe-eau (la LED rouge le montre aussi).
+ * RELAIS_ACTIF_BAS dit à quel niveau le module colle :
+ *   0 : Grove 2-Channel SPDT Relay (Seeed), commande par transistor : 3,3 V = relais collé (module utilisé) ;
+ *   1 : module optocouplé à cavalier JD-VCC : 0 V = relais collé.
+ * Dans CubeMX : GPIO_Output, contexte FSBL, niveau de départ = repos (Low si RELAIS_ACTIF_BAS vaut 0, High sinon).
+ * Tant que ces étiquettes n'existent pas dans main.h, le code compile sans elles : seules la LED et les
+ * lignes vers le PC montrent l'état. */
+#ifndef RELAIS_ACTIF_BAS
+#define RELAIS_ACTIF_BAS 0
+#endif
+
+static void sortie_relais(int voie, uint8_t colle)
+{
+#if defined(RELAIS_BAT_Pin) && defined(RELAIS_CE_Pin)
+  GPIO_PinState niveau = (colle != 0) != (RELAIS_ACTIF_BAS != 0) ? GPIO_PIN_SET : GPIO_PIN_RESET;
+  if (voie == 1) HAL_GPIO_WritePin(RELAIS_BAT_GPIO_Port, RELAIS_BAT_Pin, niveau);
+  else           HAL_GPIO_WritePin(RELAIS_CE_GPIO_Port, RELAIS_CE_Pin, niveau);
+#else
+  (void)voie; (void)colle;
+#endif
+}
+
+/* Relais d'un appareil flexible : seul le chauffe-eau a une sortie (D8) ; le radiateur n'a qu'une confirmation. */
 static void commander_relais(int appareil, uint8_t etat)
 {
   if (appareil == PILOTAGE_CHAUFFE_EAU)
   {
     if (etat) BSP_LED_On(LED_RED); else BSP_LED_Off(LED_RED);
+    sortie_relais(2, etat);
   }
+}
+
+/* Batterie : le relais (D7) laisse passer le +5 V du chargeur seulement en mode « charge ».
+   En « repos » et en « décharge », la batterie n'est pas rechargée. */
+static void commander_batterie(uint8_t mode)
+{
+  sortie_relais(1, (uint8_t)(mode == 1));
 }
 
 /* Décide l'état des appareils pour la minute actuelle ; commande et confirme ce qui a changé. */
@@ -93,6 +126,7 @@ static void piloter(void)
   {
     static const char *const MODES[] = { "repos", "charge", "decharge" };
     char info[48];
+    commander_batterie(pil.batterie);
     snprintf(info, sizeof info, "BATTERIE %02d%02d %s\r\n", hh, mm, MODES[pil.batterie % 3]);
     envoyer_message(info);
   }
@@ -198,6 +232,8 @@ void appli_init(void)
   mesure_init(&mes, 4000, K_V, K_I, 60);
   nilm_flux_init(&nilm);
   pilotage_init(&pil);
+  sortie_relais(1, 0);                     /* relais au repos tant que l'heure n'est pas connue */
+  sortie_relais(2, 0);
   envoyer_message("DEMARRAGE : init du modele...\r\n");
   nilm_etat_ia = nilm_ia_init();
   {
