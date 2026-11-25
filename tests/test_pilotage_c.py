@@ -196,6 +196,7 @@ class AppliSurPC(unittest.TestCase):
                         "-I", str(fw / "tic"), "-I", str(fw / "mesure_vi"),
                         str(DOSSIER / "essai_appli_pc.c"), str(DOSSIER / "pilotage.c"),
                         str(fw / "nilm_carte" / "appli_nilm.c"), str(fw / "nilm_carte" / "nilm_flux.c"),
+                        str(fw / "nilm_carte" / "envoi_groupe.c"),
                         str(fw / "tic" / "tic_decodeur.c"), str(fw / "mesure_vi" / "mesure_vi.c"),
                         "-lm", "-o", str(essai)], check=True)
         subprocess.run([sys.executable, str(fw / "tic" / "simulateur_tic.py"), "envoyer", "--sortie", str(flux),
@@ -208,7 +209,31 @@ class AppliSurPC(unittest.TestCase):
                         "--mqtt", "1510 nilm/maison/cmd/chauffe_eau/etat ON"],
                        check=True, capture_output=True)
         sortie = subprocess.run([str(essai), str(flux)], check=True, capture_output=True, text=True).stdout
-        lignes = [l.strip() for l in sortie.splitlines() if l.startswith(("RELAIS", "BATTERIE", "RECU", "MQTT"))]
+        lignes = [l.strip() for l in sortie.splitlines() if l.startswith(("RELAIS", "BATTERIE", "RECU", "MQTT"))
+                  and not l.startswith("MQTT nilm/maison/etat")]
+        # envoi groupé : chaque publication dans une connexion ; mesures par 4, confirmations tout de suite
+        connexions, en_cours = [], None
+        for l in (l.strip() for l in sortie.splitlines()):
+            if l == "CONNEXION ouverte":
+                self.assertIsNone(en_cours)
+                en_cours = []
+            elif l.startswith("MQTT "):
+                en_cours.append(l)
+            elif l.startswith("CONNEXION fermee"):
+                self.assertEqual(l, f"CONNEXION fermee ({len(en_cours)} messages)")
+                connexions.append(en_cours)
+                en_cours = None
+        mesures = [m for c in connexions for m in c if m.startswith("MQTT nilm/maison/etat ")]
+        nilm = [l.strip() for l in sortie.splitlines() if l.startswith("NILM ")]
+        self.assertEqual([m[len("MQTT nilm/maison/etat "):] for m in mesures],
+                         [n[len("NILM "):] for n in nilm][:len(mesures)])      # toutes, dans l'ordre
+        self.assertLess(len(nilm) - len(mesures), 4)                             # au plus 3 encore en file
+        for c in connexions:
+            if all(m.startswith("MQTT nilm/maison/etat ") for m in c):
+                self.assertEqual(len(c), 4)                                      # sans confirmation : une heure
+            else:
+                self.assertTrue(c[-1].startswith("MQTT nilm/maison/cmd/"))       # confirmation : part tout de suite
+        self.assertLess(len(connexions), len(nilm) // 4 + 8)
         attendu = [
             "MQTT nilm/maison/cmd/chauffe_eau/etat OFF", "RELAIS 1200 chauffe_eau OFF (secours)",
             "MQTT nilm/maison/cmd/chauffage/etat ON", "RELAIS 1200 chauffage ON (secours)", "BATTERIE 1200 repos",

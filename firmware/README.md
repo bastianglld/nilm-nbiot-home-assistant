@@ -19,4 +19,4 @@ Ce dossier accueillera aussi le code de la NUCLEO-N657X0-Q :
 
 - pilote AT du ST87M01 sur le STM32 (la même séquence que `test_jour1.py`, en C), par Merveil ;
 - branchement de la pince SCT-013 et de l'adaptateur 9 V sur la mesure V/I déjà validée au générateur, par Bastian ;
-- envoi des mesures et réception des messages par le ST87M01 : `appli_message_recu()` et `publier()` dans `nilm_carte/appli_nilm.c` sont les points de raccordement (formats dans [`../docs/protocole_messages.md`](../docs/protocole_messages.md)).
+- envoi des mesures et réception des messages par le ST87M01 : `appli_message_recu()` et les trois fonctions `liaison_ouvrir()`, `liaison_publier()` et `liaison_fermer()` de l'envoi groupé dans `nilm_carte/appli_nilm.c` sont les points de raccordement (formats dans [`../docs/protocole_messages.md`](../docs/protocole_messages.md)).

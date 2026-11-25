@@ -9,6 +9,7 @@ simulateur TIC (journée UK-DALE, 1 minute simulée par seconde)
   -> modèle (code généré par ST Edge AI, Cortex-M55)
   -> nilm_flux : énergies du quart d'heure retenu -> « 1615;21;48;0;0;310 »
   -> renvoyé au PC sur le port du ST-LINK : « NILM 1615;21;48;0;0;310 »
+  -> envoi groupé : mis en file, publié sur nilm/maison/etat avec les 3 suivants (une connexion par heure)
 ```
 
 La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puissance par minute (`mes.s_minute`) : il suffira d'appeler `nilm_flux_mesure` avec elle au lieu du TIC.
@@ -17,18 +18,45 @@ La mesure tension/courant (`firmware/mesure_vi`) donnera plus tard la même puis
 |---|---|
 | [`nilm_flux.h`](nilm_flux.h), [`nilm_flux.c`](nilm_flux.c) | Moyenne par minute, historique de 272 minutes, entrées (kW, sin et cos de l'heure), sortie -> Wh et message. Portable, sans HAL |
 | [`attendu_nilm.py`](attendu_nilm.py) | Messages attendus sur PC pour une journée UK-DALE (même modèle, onnxruntime), et comparaison avec ce qu'a envoyé la carte |
-| [`appli_nilm.h`](appli_nilm.h), [`appli_nilm.c`](appli_nilm.c) | Application complète de la carte : source de puissance au choix (`SOURCE_PUISSANCE` : TIC ou mesure V/I), étalonnage (`CAPTEURS_REELS`), NILM, envoi du message par une seule fonction (`envoyer_message`, vers le ST87M01 plus tard) |
+| [`appli_nilm.h`](appli_nilm.h), [`appli_nilm.c`](appli_nilm.c) | Application complète de la carte : source de puissance au choix (`SOURCE_PUISSANCE` : TIC ou mesure V/I), étalonnage (`CAPTEURS_REELS`), NILM, lignes vers le PC par une seule fonction (`envoyer_message`), messages MQTT par l'envoi groupé |
+| [`envoi_groupe.h`](envoi_groupe.h), [`envoi_groupe.c`](envoi_groupe.c) | File des messages MQTT : une connexion toutes les 4 mesures (une heure), tout de suite pour une confirmation ; messages gardés si le réseau manque. Portable, sans HAL |
 | [`nilm_ia.h`](nilm_ia.h), [`nilm_ia.c`](nilm_ia.c) | Appel du modèle généré par ST Edge AI (API legacy, Cortex-M55) : conversion float <-> int8 avec l'échelle lue dans le code généré, durée du calcul |
 | [`nilm_ia_npu.c`](nilm_ia_npu.c) | Même interface que `nilm_ia.c`, modèle exécuté par le NPU Neural-ART (LL_ATON) ; choix par `NILM_SUR_NPU` dans `nilm_ia.h` |
 | [`npu/`](npu/) | Mise en route du NPU dans `tic_test` : RAM du NPU, horloges (y compris pendant la veille), droits d'accès RIF/RISAF ; pilote RIF compilé à part ; cache du NPU vide |
 | [`remettre_ia.sh`](remettre_ia.sh) | Remet `Middlewares/ST/AI` après un « Generate Code » de CubeMX (qui efface ce dossier) |
-| [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests |
+| [`test_pc.c`](test_pc.c) | Accès au code C depuis Python pour les tests (`nilm_flux`, `envoi_groupe`) |
 | [`validation_carte.md`](validation_carte.md) | Résultats sur la carte : journée UK-DALE complète, comparaison avec le PC |
 | [`../nilm_npu/`](../nilm_npu/) | Même chaîne avec le modèle sur le NPU Neural-ART |
 
 Réglages (identiques à `nilm_meta.json`) : fenêtre de 272 minutes, une fenêtre toutes les 15 minutes, minutes 130 à 144 retenues. Les fenêtres finissent à hh:07, :22, :37 et :52 pour que le quart d'heure retenu commence pile à hh:00, :15, :30 ou :45 (retard de 2 h 07 à 2 h 22). Une minute sans mesure est mise à 0 sur les 3 entrées, comme à l'entraînement.
 
 Test : `python -m unittest tests.test_nilm_flux_c` (le code C donne les mêmes messages que la fenêtre glissante du notebook semaine07, à 1 Wh près, y compris avec plusieurs mesures par minute et un trou de 12 minutes).
+
+## Envoi groupé
+
+Ouvrir une connexion NB-IoT (TLS et MQTT) coûte bien plus de données que les messages eux-mêmes. Le [budget de données](../../docs/budget_donnees_sim.md) a retenu **une connexion par heure qui envoie les 4 mesures ensemble** (22 % du forfait avec la reprise de session TLS). `envoi_groupe` le fait :
+
+- `envoi_mesure()` : le message de 15 minutes (`nilm/maison/etat`) est mis en file ; quand 4 mesures attendent, la carte se connecte et les envoie, dans l'ordre, un PUBLISH par message ;
+- `envoi_urgent()` : une confirmation de relais (`nilm/maison/cmd/<appareil>/etat`, plus tard une alerte) part tout de suite ; la connexion emporte aussi les mesures en attente. Un message reçu et confirmé pendant une connexion part dans la même connexion ;
+- si le réseau manque (ouverture ou publication ratée), les messages non publiés restent en file, et la carte réessaie au message suivant (au plus tard 15 minutes après) ;
+- la file garde 16 messages (4 h de mesures) : au-delà, le plus ancien est jeté et compté (`envoi.perdus`) ;
+- un topic de plus de 48 caractères ou un message de plus de 50 (limite du ST87M01) est refusé (`envoi.refuses`).
+
+L'envoi passe par trois fonctions de `appli_nilm.c`, `liaison_ouvrir()`, `liaison_publier(topic, message)` et `liaison_fermer(n)`, qui renvoient 0 si tout va bien. Aujourd'hui elles écrivent vers le PC :
+
+```
+NILM 1500;0;0;0;0;200
+CONNEXION ouverte
+MQTT nilm/maison/etat 1415;0;0;0;0;200
+MQTT nilm/maison/etat 1430;0;0;0;0;200
+MQTT nilm/maison/etat 1445;0;0;0;0;200
+MQTT nilm/maison/etat 1500;0;0;0;0;200
+CONNEXION fermee (4 messages)
+```
+
+Le pilote du ST87M01 (partie B) n'aura qu'à les remplacer : connexion au broker, `AT#MQTTPUB`, déconnexion. Dans le projet CubeIDE `tic_test`, copier `envoi_groupe.c` et `envoi_groupe.h` à côté de `appli_nilm.c`.
+
+Test : `python -m unittest tests.test_envoi_groupe_c` (4 mesures, 3 mesures, message urgent, réseau absent puis revenu, publication ratée au milieu, file pleine, messages trop longs, confirmation pendant une connexion). Le programme complet compilé sur PC est vérifié par `tests.test_pilotage_c`.
 
 ## Générer le modèle pour le Cortex-M55
 

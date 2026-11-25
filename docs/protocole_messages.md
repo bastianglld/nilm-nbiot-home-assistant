@@ -11,6 +11,8 @@ Proposition de la partie C (contenu des messages), alignée le 5 novembre 2026 s
 | Carte vers serveur | `nilm/maison/cmd/<appareil>/etat` | après chaque changement d'un relais | `ON` / `OFF` | carte, puis Home Assistant |
 | Serveur vers Home Assistant | `nilm/maison/conseils` | une fois par semaine, *retain* | JSON | EMS, puis Home Assistant |
 
+Envoi par la carte : les mesures attendent en file et partent par 4, en une connexion par heure ; une confirmation de relais part tout de suite et emporte les mesures en attente ([`envoi_groupe`](../firmware/nilm_carte/envoi_groupe.h)).
+
 La carte s'abonne à `nilm/maison/cmd/+` en QoS 1 : elle reçoit ainsi le planning et les commandes ponctuelles avec un seul abonnement. Ce filtre ne couvre qu'un niveau : la carte ne reçoit pas ses propres confirmations `cmd/<appareil>/etat`.
 
 Côté carte, chaque message reçu est traité selon la fin de son topic :

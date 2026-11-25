@@ -5,7 +5,7 @@
  * par un calcul vide (les messages NILM ont tous des appareils à 0) : seul le pilotage est vérifié ici.
  *
  *   gcc -std=c11 -Iessai_pc -I. -I../nilm_carte -I../tic -I../mesure_vi essai_appli_pc.c pilotage.c ../nilm_carte/appli_nilm.c \
- *       ../nilm_carte/nilm_flux.c ../tic/tic_decodeur.c ../mesure_vi/mesure_vi.c -lm -o essai
+ *       ../nilm_carte/nilm_flux.c ../nilm_carte/envoi_groupe.c ../tic/tic_decodeur.c ../mesure_vi/mesure_vi.c -lm -o essai
  *   ./essai flux.bin
  */
 #include <stdio.h>
