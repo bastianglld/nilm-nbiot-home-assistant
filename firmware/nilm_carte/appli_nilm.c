@@ -62,17 +62,23 @@ static void publier(const char *topic, const char *message)
 }
 
 /* ------------------------------------------------------------------ sorties relais
- * Module relais 2 voies optocouplé, actif à l'état bas (0 = relais collé, 1 = repos), câblé comme dans le
- * document remis au technicien :
- *   D7 = PE11, étiquette CubeMX RELAIS_BAT -> IN1 : coupe ou rétablit le +5 V USB de la batterie externe ;
- *   D8 = PD12, étiquette CubeMX RELAIS_CE  -> IN2 : chauffe-eau (la LED rouge le montre aussi).
- * Dans CubeMX : GPIO_Output, niveau de départ High (relais au repos). Tant que ces étiquettes n'existent pas
- * dans main.h (projet pas encore régénéré), le code compile sans elles : seules la LED et les lignes vers le PC
- * montrent l'état. */
+ * Deux voies de relais, câblées comme dans le document remis au technicien :
+ *   D7 = PE11, étiquette CubeMX RELAIS_BAT -> relais 1 : coupe ou rétablit le +5 V USB de la batterie externe ;
+ *   D8 = PD12, étiquette CubeMX RELAIS_CE  -> relais 2 : chauffe-eau (la LED rouge le montre aussi).
+ * RELAIS_ACTIF_BAS dit à quel niveau le module colle :
+ *   0 : Grove 2-Channel SPDT Relay (Seeed), commande par transistor : 3,3 V = relais collé (module utilisé) ;
+ *   1 : module optocouplé à cavalier JD-VCC : 0 V = relais collé.
+ * Dans CubeMX : GPIO_Output, contexte FSBL, niveau de départ = repos (Low si RELAIS_ACTIF_BAS vaut 0, High sinon).
+ * Tant que ces étiquettes n'existent pas dans main.h, le code compile sans elles : seules la LED et les
+ * lignes vers le PC montrent l'état. */
+#ifndef RELAIS_ACTIF_BAS
+#define RELAIS_ACTIF_BAS 0
+#endif
+
 static void sortie_relais(int voie, uint8_t colle)
 {
 #if defined(RELAIS_BAT_Pin) && defined(RELAIS_CE_Pin)
-  GPIO_PinState niveau = colle ? GPIO_PIN_RESET : GPIO_PIN_SET;     /* actif à l'état bas */
+  GPIO_PinState niveau = (colle != 0) != (RELAIS_ACTIF_BAS != 0) ? GPIO_PIN_SET : GPIO_PIN_RESET;
   if (voie == 1) HAL_GPIO_WritePin(RELAIS_BAT_GPIO_Port, RELAIS_BAT_Pin, niveau);
   else           HAL_GPIO_WritePin(RELAIS_CE_GPIO_Port, RELAIS_CE_Pin, niveau);
 #else
