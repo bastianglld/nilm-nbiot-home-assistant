@@ -35,6 +35,8 @@ HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *h, const uint8_t *o, uin
 }
 
 GPIO_TypeDef essai_port_bat = { "RELAIS_BAT" }, essai_port_ce = { "RELAIS_CE" };
+GPIO_TypeDef essai_port_j1 = { "JAUGE1" }, essai_port_j2 = { "JAUGE2" }, essai_port_j3 = { "JAUGE3" },
+             essai_port_j4 = { "JAUGE4" }, essai_port_j5 = { "JAUGE5" };
 void HAL_GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState etat)
 {
     (void)pin;

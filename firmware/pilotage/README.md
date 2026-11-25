@@ -45,6 +45,22 @@ Dans CubeMX (`tic_test.ioc`) : les deux broches en **GPIO_Output**, attribuées 
 
 Vérification sans le module : multimètre ou LED (avec sa résistance) entre la broche et la masse. Avec le module Grove : 3,3 V = relais collé, 0 V = repos.
 
+## Batterie virtuelle et jauge de 5 LED
+
+Pour la démonstration, la carte suit le niveau d'une **batterie domestique simulée** (`batterie_virtuelle.c`), avec les paramètres de la simulation de l'EMS : 5 kWh, 2,5 kW en charge et en décharge, rendement de 95 %, réserve de 0,5 kWh, départ à moitié pleine. Chaque minute, le niveau évolue selon le mode décidé par le pilotage (repos, charge, décharge). La décharge ne fournit jamais plus que la consommation mesurée de la maison. Le niveau s'affiche sur une jauge de 5 LED et dans une ligne `JAUGE hhmm 71 % (4/5)` à chaque changement.
+
+| LED | Broche Arduino | Broche STM32 | Étiquette CubeMX |
+|---|---|---|---|
+| 1 (la plus basse) | D2 | PD0 | `JAUGE1` |
+| 2 | D3 | PE9 | `JAUGE2` |
+| 3 | D4 | PE0 | `JAUGE3` |
+| 4 | D5 | PE10 | `JAUGE4` |
+| 5 (la plus haute) | D6 | PD5 | `JAUGE5` |
+
+Câblage de chaque LED : broche → résistance 220 Ω → LED (patte longue) ; patte courte → GND. Dans CubeMX : GPIO_Output, contexte **FSBL** (*Pin Context Assignment*), niveau de départ **Low**, étiquettes ci-dessus, puis *Generate Code*. Tant que les étiquettes ne sont pas dans `main.h`, le programme compile sans la jauge.
+
+Sur l'essai de la nuit (planning : charge de 0 h à 2 h, décharge à partir de 6 h, maison à 800 W) : 3 LED au départ (50 %), 4 à 0 h 25, 5 à 0 h 50, puis une de moins vers 6 h 35, 7 h 46, 8 h 58 et 10 h 09.
+
 ## Essais
 
 Sur PC (`python -m unittest tests.test_pilotage_c`) :
