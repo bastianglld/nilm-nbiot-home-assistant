@@ -8,6 +8,7 @@
 #include "nilm_flux.h"
 #include "nilm_ia.h"
 #include "pilotage.h"
+#include "envoi_groupe.h"
 
 /* ------------------------------------------------------------------ étalonnage de la mesure */
 #define ADC_VOLTS_PAR_POINT  (1.8f / 4096.0f)  /* référence de l'ADC du STM32N6 : 1,8 V */
@@ -43,6 +44,7 @@ volatile int32_t minute_actuelle = -1;   /* heure de la carte : TIC, ou mesure V
 static int32_t minute_pilotee = -1;
 static char ligne_rx[96];                /* essais sur PC : lignes « MQTT <topic> <message> » reçues */
 static uint8_t ligne_rx_n;
+envoi_groupe_t envoi;                    /* file des messages MQTT, une connexion par heure (envoi_groupe.h) */
 
 /* ------------------------------------------------------------------ envoi */
 /* Un seul point de sortie : aujourd'hui le port du ST-LINK (PC), demain la liaison vers le ST87M01. */
@@ -52,13 +54,11 @@ static void envoyer_message(const char *ligne)
     nilm_envois_rates++;
 }
 
-/* Publication d'un message MQTT. Aujourd'hui : une ligne « MQTT <topic> <message> » vers le PC ;
-   demain : AT#MQTTPUB du ST87M01 (partie B). */
+/* Publication d'un message urgent (confirmation d'un relais) : connexion tout de suite, qui emporte aussi
+   les mesures en attente. Les mesures de 15 minutes passent par envoi_mesure() (une connexion par heure). */
 static void publier(const char *topic, const char *message)
 {
-  char ligne[96];
-  snprintf(ligne, sizeof ligne, "MQTT %s %s\r\n", topic, message);
-  envoyer_message(ligne);
+  envoi_urgent(&envoi, topic, message);
 }
 
 /* ------------------------------------------------------------------ sorties relais
@@ -186,12 +186,42 @@ static void puissance_vers_nilm(int32_t minute, float puissance)
   snprintf(ligne, sizeof ligne, "NILM %s\r\n", nilm.message);
 #endif
   envoyer_message(ligne);
+  envoi_mesure(&envoi, "nilm/maison/etat", nilm.message);   /* en file : connexion toutes les 4 mesures */
   BSP_LED_Toggle(LED_BLUE);
 }
+
+/* ------------------------------------------------------------------ liaison MQTT (envoi groupé)
+ * Les trois fonctions appelées par envoi_groupe. Aujourd'hui : des lignes vers le PC ;
+ * demain : le pilote du ST87M01 (partie B) n'a qu'à les remplacer (connexion TLS + MQTT, AT#MQTTPUB,
+ * déconnexion). Chacune renvoie 0 si tout s'est bien passé. */
+static int liaison_ouvrir(void)
+{
+  envoyer_message("CONNEXION ouverte\r\n");
+  return 0;
+}
+
+static int liaison_publier(const char *topic, const char *message)
+{
+  char ligne[96];
+  uint32_t rates = nilm_envois_rates;               /* envoyer_message compte les envois ratés */
+  snprintf(ligne, sizeof ligne, "MQTT %s %s\r\n", topic, message);
+  envoyer_message(ligne);
+  return nilm_envois_rates == rates ? 0 : -1;
+}
+
+static void liaison_fermer(uint16_t nb_publies)
+{
+  char ligne[48];
+  snprintf(ligne, sizeof ligne, "CONNEXION fermee (%u messages)\r\n", (unsigned)nb_publies);
+  envoyer_message(ligne);
+}
+
+static const envoi_liaison_t LIAISON = { liaison_ouvrir, liaison_publier, liaison_fermer };
 
 /* ------------------------------------------------------------------ interface */
 void appli_init(void)
 {
+  envoi_init(&envoi, &LIAISON);
   tic_init(&tic);
   mesure_init(&mes, 4000, K_V, K_I, 60);
   nilm_flux_init(&nilm);

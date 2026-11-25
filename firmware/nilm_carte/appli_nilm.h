@@ -4,7 +4,8 @@
  * Deux sources de puissance, au choix (SOURCE_PUISSANCE) :
  *   SOURCE_TIC : trames TIC (Linky ou simulateur) sur le port du ST-LINK, 9 600 bauds 8N1 ;
  *   SOURCE_VI  : mesure tension/courant de la carte (A0 = courant, A1 = tension, 4 000 échantillons/s).
- * Le modèle NILM tourne sur le Cortex-M55 (nilm_ia). Le message part par envoyer_message().
+ * Le modèle NILM tourne sur le Cortex-M55 (nilm_ia). Les messages MQTT partent par l'envoi groupé
+ * (envoi_groupe.h) : une connexion par heure pour les mesures, tout de suite pour les confirmations.
  */
 #ifndef APPLI_NILM_H
 #define APPLI_NILM_H
