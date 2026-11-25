@@ -53,3 +53,25 @@ Sortie du GBF en mode « High Z », réglage vérifié à l'oscilloscope **avant
 4. **Saturation** : `mes.v_min`/`mes.v_max` ne doivent jamais atteindre 0 ou 4095.
 
 Ensuite, avec les capteurs, il suffit de changer `K_V` et `K_I` (formules dans `integration_stm32.c`) et d'étalonner contre une charge connue.
+
+## Voie tension réelle sur la carte (25 novembre 2026)
+
+Montage sur breadboard, carte avec le Grove Base Shield (3V3 et GND du shield) :
+
+- adaptateur **Mascot 8510** (230 V → 9 V AC, 780 mA, double isolation), branché sur la multiprise mesurée, relié par un jack DC femelle pour circuit imprimé (patte du milieu et patte du fond ; la patte de côté est le contact de coupure) ;
+- secondaire mesuré à vide : **10,7 V efficaces** (rapport `SECTEUR_V / SECONDAIRE_V` = 230 / 10,7 dans `appli_nilm.c`) ;
+- pont R5 = 100 kΩ / R6 = 8,2 kΩ, point milieu R7 = R8 = 10 kΩ + C2 = 10 µF ; signal sur A1 entre 0,5 et 2,8 V ;
+- A0 relié au point milieu tant que la pince n'est pas là (courant nul).
+
+Contrôles avant de relier A1 : 1,65 V (V⎓) sur le point milieu et sur la jonction R5-R6, 0,8 V (V~) entre les deux, transformateur branché. Une erreur trouvée ainsi : R7 et R8 inversées avec des valeurs différentes donnaient 3,0 V au lieu de 1,65 V.
+
+Programme `tic_test` avec `SOURCE_PUISSANCE = SOURCE_VI` et `CAPTEURS_REELS = 1`, une ligne par minute :
+
+| Grandeur | Relevé sur 13 minutes | Commentaire |
+|---|---|---|
+| U | 225,6 à 227,1 V | stable à ± 0,4 % ; écart à 230 V dans la tolérance du secteur et de l'étalonnage (à affiner avec le wattmètre de prise) |
+| I | 0,11 à 0,12 A | bruit de la voie courant sans pince : plancher de mesure |
+| S | 26 à 27 VA | conséquence du bruit sur I (U × I) ; à retirer à l'étalonnage de la pince |
+| P | 2 à 3 W | le bruit n'est pas en phase avec la tension : il pèse peu sur P |
+
+Ordre de branchement : 3V3 et GND d'abord, puis le transformateur, et le fil vers A1 en dernier (sans 3V3, le point milieu tombe à 0 V et A1 verrait des tensions négatives). Débrancher dans l'ordre inverse.
