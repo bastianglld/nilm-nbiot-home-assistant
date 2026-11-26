@@ -340,8 +340,9 @@ def seance(modem, opts, dormir=time.sleep, horloge=time.monotonic):
     rep = c("AT#IPCFG?")
     r.noter("4.7", "pile IP active", rep.ok, rep.ligne("#IPCFG:") or rep.erreur)
     if opts.ping:
-        # 3 pings, 30 s d'attente chacun : la première réponse peut être lente en NB-IoT
-        rep = c(f"AT#IPPING={CONTEXTE},8.8.8.8,30,10,3", delai=120)
+        # 3 pings, 120 s d'attente chacun (maximum du manuel) : le premier paquet après un repos
+        # peut mettre plus de 20 s (essais du 20 nov) ; avec 30 s, une partie des pings échouait
+        rep = c(f"AT#IPPING={CONTEXTE},8.8.8.8,120,10,3", delai=400)
         bilan = rep.ligne("#IPPING:")
         recus = ping_recus(bilan)
         r.ping = rep.ok and recus is not None and recus > 0
@@ -376,8 +377,9 @@ def mqtt(modem, opts, r):
         adresse = champs(rep.ligne("#DNS:"))[0] if rep.ligne("#DNS:") else ""
         if not r.noter("6.1", f"DNS {opts.broker}", bool(adresse), adresse or rep.erreur):
             return
-    c(f"AT#MQTTCFG={opts.client},20,20,10,{opts.keepalive}")
-    rep = c(f"AT#SOCKETCREATE={CONTEXTE},0,TCP,,{opts.delai_socket},{opts.delai_socket}")
+    # dernier paramètre = keep-alive : 0 le désactive (connexion coupée en silence, essais du 25 nov)
+    c(f"AT#MQTTCFG={opts.client},60,60,3,{opts.keepalive}")
+    rep = c(f"AT#SOCKETCREATE={CONTEXTE},0,TCP,,{opts.delai_socket},{opts.delai_socket}", delai=10)
     socket = champs(rep.ligne("#SOCKETCREATE:"))
     if not r.noter("6.3", "socket TCP", rep.ok and bool(socket), rep.ligne("#SOCKETCREATE:") or rep.erreur):
         return
@@ -385,16 +387,20 @@ def mqtt(modem, opts, r):
     cmd = f"AT#MQTTCONNECT={CONTEXTE},{sid},{adresse},{opts.port_mqtt}"
     if opts.utilisateur:
         cmd += f",{opts.utilisateur}" + (f",{opts.mdp}" if opts.mdp else "")
-    rep = c(cmd, delai=25)
+    rep = c(cmd, delai=70)
     if r.noter("6.4", "connexion au broker", rep.ok, rep.erreur):
-        rep = c(f"AT#MQTTPUB={opts.topic},{opts.message},3,1,0", delai=25)
+        # message entre guillemets : sans eux, le « ; » coupe la commande AT (essais du 20 nov)
+        # paramètres : topic, message, nombre d'essais, QoS, retain (manuel AT § 12.4)
+        rep = c(f'AT#MQTTPUB={opts.topic},"{opts.message}",3,1,0', delai=60)
         r.mqtt_publie = r.noter("6.5", f"publication sur {opts.topic}", rep.ok, rep.erreur)
         if opts.attente_plan > 0:
-            rep = c(f"AT#MQTTSUB={opts.topic_plan},1", delai=15)
+            # topic exact : avec un joker (+), le module acquitte sans afficher #MQTTRECV (25 nov)
+            rep = c(f"AT#MQTTSUB={opts.topic_plan},1", delai=30)
             recu = modem.attendre("#MQTTRECV:", opts.attente_plan) if rep.ok else None
             r.mqtt_recu = recu is not None
             r.noter("6.7", f"réception sur {opts.topic_plan}", r.mqtt_recu, recu or "rien reçu")
-        c("AT#MQTTDISC", delai=25)
+        if c("AT#MQTTDISC", delai=30).ok:
+            return  # AT#MQTTDISC ferme aussi la socket
     c(f"AT#SOCKETCLOSE={CONTEXTE},{sid}", delai=60)
 
 
@@ -445,10 +451,11 @@ def options(argv=None):
     p.add_argument("--demander-mdp", action="store_true", help="demander le mot de passe MQTT au clavier")
     p.add_argument("--topic", default="nilm/maison/etat")
     p.add_argument("--message", default="1615;21;48;0;0;310")
-    p.add_argument("--topic-plan", default="nilm/maison/cmd/+")
+    p.add_argument("--topic-plan", default="nilm/maison/cmd/plan",
+                   help="topic exact (pas de joker : le module n'afficherait pas les messages reçus)")
     p.add_argument("--attente-plan", type=float, default=60, help="attente du planning après abonnement (s), 0 pour ne pas s'abonner")
-    p.add_argument("--keepalive", type=int, default=0, help="keep-alive MQTT (s), 0 = désactivé pour les tests")
-    p.add_argument("--delai-socket", type=int, default=10, help="délais d'envoi et de réception de la socket (s)")
+    p.add_argument("--keepalive", type=int, default=120, help="keep-alive MQTT (s), 120 par défaut ; 0 le désactive")
+    p.add_argument("--delai-socket", type=int, default=60, help="délais d'envoi et de réception de la socket (s)")
     p.add_argument("--eteindre", action="store_true", help="finir par AT#PWROFF")
     p.add_argument("--journaux", default=str(DOSSIER_JOURNAUX), help="dossier du journal et de la fiche de relevé")
     o = p.parse_args(argv)

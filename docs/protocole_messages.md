@@ -13,7 +13,7 @@ Proposition de la partie C (contenu des messages), alignée le 5 novembre 2026 s
 
 Envoi par la carte : les mesures attendent en file et partent par 4, en une connexion par heure ; une confirmation de relais part tout de suite et emporte les mesures en attente ([`envoi_groupe`](../firmware/nilm_carte/envoi_groupe.h)).
 
-La carte s'abonne à `nilm/maison/cmd/+` en QoS 1 : elle reçoit ainsi le planning et les commandes ponctuelles avec un seul abonnement. Ce filtre ne couvre qu'un niveau : la carte ne reçoit pas ses propres confirmations `cmd/<appareil>/etat`.
+La carte s'abonne en QoS 1 à chaque topic de commande **par son nom exact** (`nilm/maison/cmd/plan`, `nilm/maison/cmd/<appareil>`), en une seule commande `AT#MQTTSUB=<topic1>,1,<topic2>,1`. Avec le joker `nilm/maison/cmd/+`, le ST87M01 (firmware 2.11.0) acquitte les messages sans les transmettre à la carte (pas de `#MQTTRECV`) : constaté sur le kit le 20, le 25 et le 26 novembre 2026. Les abonnements exacts ne reçoivent pas non plus les confirmations `cmd/<appareil>/etat`.
 
 Côté carte, chaque message reçu est traité selon la fin de son topic :
 

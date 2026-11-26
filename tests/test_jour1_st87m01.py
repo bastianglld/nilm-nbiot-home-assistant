@@ -63,9 +63,13 @@ class TestSeance(unittest.TestCase):
         self.assertTrue(r.reussi, r.etapes)
         self.assertTrue(r.mqtt_publie)
         self.assertTrue(r.mqtt_recu)
-        self.assertIn("AT#SOCKETCREATE=5,0,TCP,,10,10", module.recues)
-        self.assertIn("AT#MQTTPUB=nilm/maison/etat,1615;21;48;0;0;310,3,1,0", module.recues)
-        self.assertIn("AT#SOCKETCLOSE=5,0", module.recues)
+        self.assertIn("AT#SOCKETCREATE=5,0,TCP,,60,60", module.recues)
+        # message entre guillemets (sans eux, le « ; » coupe la commande : essais du 20 nov)
+        self.assertIn('AT#MQTTPUB=nilm/maison/etat,"1615;21;48;0;0;310",3,1,0', module.recues)
+        self.assertEqual(module.publies[0], ("nilm/maison/etat", "1615;21;48;0;0;310"))
+        self.assertIn("AT#MQTTSUB=nilm/maison/cmd/plan,1", module.recues)  # topic exact, pas de joker
+        self.assertIn("AT#MQTTCFG=nilm_01,60,60,3,120", module.recues)
+        self.assertEqual(module.recues[-1], "AT#MQTTDISC")  # la déconnexion ferme aussi la socket
 
     def test_broker_par_nom(self):
         r, module = lancer(["--broker", "broker.exemple.fr", "--attente-plan", "0"])
@@ -115,7 +119,7 @@ class TestSeance(unittest.TestCase):
         r, module = lancer(ping_ok=False)
         self.assertFalse(r.ping)
         self.assertFalse(r.reussi)
-        self.assertIn("AT#IPPING=5,8.8.8.8,30,10,3", module.recues)
+        self.assertIn("AT#IPPING=5,8.8.8.8,120,10,3", module.recues)
 
     def test_ping_recus(self):
         self.assertEqual(tj.ping_recus("#IPPING: 1,0,1,999999,0,0"), 0)
