@@ -1,15 +1,17 @@
 # Tests du module ST87M01
 
-Partie B (Merveil). Tout ce qu'il faut pour le premier jour du kit EVKITST87M01-2, branché au PC en USB.
+Partie B (Merveil). Tout ce qu'il faut pour tester le kit EVKITST87M01-2 branché au PC en USB : la procédure du premier jour, puis le cycle d'échange avec le broker validé le 26 novembre 2026.
 
 | Fichier | Rôle |
 |---|---|
 | [`jour1_kit.md`](jour1_kit.md) | La procédure pas à pas : montage, commandes AT, réponses attendues, problèmes fréquents |
 | [`test_jour1.py`](test_jour1.py) | La même procédure, automatisée : envoie les commandes, vérifie les réponses, écrit le journal et la fiche de relevé |
+| [`cycle_st87m01.py`](cycle_st87m01.py) | Le cycle d'échange validé sur le kit (connexion, mesure, commandes, confirmation, déconnexion), répété à intervalle fixe : base du pilote de la carte STM32 et mesure de la durée et du volume d'un cycle |
+| [`certificat_at.py`](certificat_at.py) | Écrit la commande `AT#TLSCERTADD` qui charge le certificat racine du broker dans le module (TLS, port 8883), après avoir vérifié qu'il est en ECDSA |
 | [`faux_st87m01.py`](faux_st87m01.py) | Un faux module qui répond comme le ST87M01, pour essayer le script sans le kit |
 | [`budget_donnees.py`](budget_donnees.py) | Estimation des données consommées par jour selon la stratégie d'envoi, comparée au forfait de la SIM (résultats : [`docs/budget_donnees_sim.md`](../../docs/budget_donnees_sim.md)) |
 
-Tests automatiques : [`../../tests/test_jour1_st87m01.py`](../../tests/test_jour1_st87m01.py) (lancés par l'intégration continue).
+Tests automatiques : [`../../tests/test_jour1_st87m01.py`](../../tests/test_jour1_st87m01.py) et [`../../tests/test_cycle_st87m01.py`](../../tests/test_cycle_st87m01.py) (lancés par l'intégration continue).
 
 ## Installation
 
@@ -52,6 +54,59 @@ L'IMSI, l'ICCID, l'IMEI et le mot de passe MQTT sont masqués dans le journal. L
 |---|---|---|
 | 2 Dialogue | `AT` (jusqu'à 4 essais : le premier ne fait souvent que réveiller le module), `AT+CMEE=2`, `ATI`, `AT+CGMR`, `AT#SLEEPMODE?`, `AT#SLEEPMODE=0` | `OK` ; la mise en veille est désactivée pour la séance (sauf `--garder-veille`) |
 | 3 SIM | `AT#SIMST?`, `AT+CPIN?` | `#SIMST: 1` et `READY` ; sinon le script s'arrête |
-| 4 Attache | `AT#BANDSEL?`, `AT+CFUN?`, `AT+CEREG?` toutes les 10 s, `AT+COPS?`, `AT+CGCONTRDP=5`, `AT+CGPADDR=5`, `AT#IPCFG?`, `AT#IPPING=5,8.8.8.8,30,10,3` | `+CEREG` à 1 ou 5 en moins de 300 s, une adresse IP, au moins une réponse au ping (2ᵉ champ de `#IPPING`) ; arrêt immédiat si l'enregistrement est refusé (3) |
+| 4 Attache | `AT#BANDSEL?`, `AT+CFUN?`, `AT+CEREG?` toutes les 10 s, `AT+COPS?`, `AT+CGCONTRDP=5`, `AT+CGPADDR=5`, `AT#IPCFG?`, `AT#IPPING=5,8.8.8.8,120,10,3` | `+CEREG` à 1 ou 5 en moins de 300 s, une adresse IP, au moins une réponse au ping (2ᵉ champ de `#IPPING`) ; arrêt immédiat si l'enregistrement est refusé (3) |
 | 5 Signal | `AT+CESQ` | RSRP en dBm = valeur − 141 ; RSRQ en dB = valeur / 2 − 20 |
 | 6 MQTT | `AT#DNS` (si nom), `AT#MQTTCFG`, `AT#SOCKETCREATE=5,…`, `AT#MQTTCONNECT=5,…`, `AT#MQTTPUB`, `AT#MQTTSUB`, `AT#MQTTDISC`, `AT#SOCKETCLOSE` | Limites du module respectées (topic et message ≤ 50, client et utilisateur ≤ 25, mot de passe ≤ 50), publication acceptée, planning reçu (`#MQTTRECV`) |
+
+## Le cycle d'échange (`cycle_st87m01.py`)
+
+Le module ne garde pas une connexion MQTT ouverte : sans keep-alive, elle meurt en silence ; avec un keep-alive, le module n'envoie pas son PINGREQ et le broker coupe (essais du 25 novembre). Le boîtier fonctionne donc par **cycles** : il se connecte, échange, se déconnecte et se rendort. Fréquence retenue : **un cycle toutes les 15 minutes**.
+
+```bash
+# sans le kit
+python cycle_st87m01.py --simulateur --cycles 3
+
+# mesure du volume d'un cycle : 10 cycles dans une seule session de données, puis lecture dans SIMPro le lendemain
+python cycle_st87m01.py --port COM4 --broker <adresse IP> --utilisateur <compte> --demander-mdp --cycles 10 --nouvelle-session --fermer-session
+
+# fonctionnement réel : un cycle toutes les 15 minutes pendant 2 heures
+python cycle_st87m01.py --port COM4 --broker <adresse IP> --utilisateur <compte> --demander-mdp --cycles 8 --intervalle 900
+```
+
+| Étape | Commande | Remarque |
+|---|---|---|
+| Démarrage | `AT` (jusqu'à 4 fois), `AT#SLEEPMODE=0`, `AT+CGDCONT?` | L'APN doit être `eapn1.net` en `IP` : il s'est effacé une fois (25 nov). `--corriger-apn` le réécrit |
+| Connexion de données | `AT+CEREG?`, `AT+CGPADDR=5` ; sinon `AT+CFUN=0`, `AT+CFUN=1` et attente de `#IPCFG: 5,0,1` | Entre deux cycles, le module reste attaché et garde son adresse : pas de `AT+CFUN` (gain de 39 s) |
+| 1 Configuration | `AT#MQTTCFG=nilm_01,60,60,3,120` | Dernier champ : keep-alive (0 le désactive) |
+| 2 Socket | `AT#SOCKETCREATE=5,0,TCP,,60,60` | Numéro de socket lu dans la réponse |
+| 3 Connexion | `AT#MQTTCONNECT=5,<socket>,<broker>,1883,<compte>,<mot de passe>` | |
+| 4 Mesure | `AT#MQTTPUB=nilm/maison/etat,"<message>",3,1,0` | **Guillemets** obligatoires (le `;` sépare deux commandes AT). Paramètres : topic, message, essais, QoS, retain |
+| 5 Commandes | `AT#MQTTSUB=nilm/maison/cmd/plan,1,nilm/maison/cmd/chauffe_eau,1`, puis lecture des `#MQTTRECV` pendant 10 s | **Topics exacts** : avec le joker `+`, le module acquitte (PUBACK) sans afficher le message. Les ordres sont gardés par le broker (*retain*) et arrivent au cycle suivant |
+| 6 Confirmation | `AT#MQTTPUB=nilm/maison/cmd/chauffe_eau/etat,"ON",3,1,0` | État réel du relais, affiché par Home Assistant |
+| 7 Déconnexion | `AT#MQTTDISC` | Ferme aussi la socket (`AT#SOCKETCLOSE` répondrait 2104) |
+| En cas d'erreur | 1. Un ping (`AT#IPPING=5,8.8.8.8,120,10,1`) vérifie le réseau. 2. Sans réponse : `AT+CFUN=0`, `AT+CFUN=1`, 30 s d'attente après `#IPCFG: 5,0,1`, nouveau ping (deux relances au plus). 3. Si le réseau répond : `AT#RESET=1`, puis connexion de données et ping. 4. Nouvel essai du cycle (deux reprises au plus) ; sans réseau, la séance s'arrête | Le 27 novembre, l'accès Internet s'est perdu deux fois malgré l'adresse IP (2152, ping sans réponse) : seule la relance `CFUN` l'a rétabli, une fois en deux essais. Après 2215, 2218, 2220, seule une remise à zéro débloque la pile MQTT. Jamais `AT#RESET=0`. Le ping n'est envoyé qu'après un échec, pour ne pas consommer de données à chaque cycle |
+
+Produit : un journal `journaux/cycles_<date>.log` et une ligne par cycle dans `journaux/releve_cycles.csv` (durée de chaque étape, commandes reçues, confirmations). Durées mesurées à la main le 26 novembre : connexion 1,9 s, mesure 4,3 s, commandes 3,3 s, confirmation 2,7 s, déconnexion 2,1 s, soit environ 14 s de module par cycle.
+
+## Passer en TLS (port 8884, validé le 27 novembre)
+
+Le module vérifie le certificat du broker avec un certificat racine chargé une fois pour toutes dans son stockage sécurisé (note d'application ST87MXX_TLS). Seuls les certificats **ECDSA** sont acceptés, au format **DER**.
+
+`AT#MQTTCONNECT` n'accepte qu'une **adresse IP** : le certificat du broker doit donc contenir cette adresse. Avec le certificat Let's Encrypt du port 8883 (établi pour le nom DNS du serveur), le module refuse la connexion (`+CME ERROR: 3113`, « X509 : certificate verification failed »), que la racine chargée soit ISRG Root YE ou ISRG Root X2 (essais du 27 novembre). Le broker offre donc au module un **port 8884**, avec un certificat signé par l'autorité ECDSA de l'équipe (« NILM M1 CA ») qui contient l'adresse IP. Home Assistant garde Let's Encrypt sur le 8883.
+
+```bash
+python certificat_at.py ca.crt --profil 2 --sortie commande_ca.txt   # écrit AT#TLSCERTADD=2,1,<longueur>,<hexadécimal>
+```
+
+Dans la console : coller la commande, attendre `OK`, vérifier avec `AT#TLSCERTLIST=2`, puis `AT#RESET=1`, puis **`AT+CFUN=0` et `AT+CFUN=1`** (après une remise à zéro, le module peut garder une adresse IP sans accès Internet). Ensuite, à chaque cycle, seules deux commandes changent :
+
+| Commande | Changement |
+|---|---|
+| `AT#SOCKETCREATE=5,0,TCP,,60,60,0,2,1` | 7ᵉ paramètre : pas de notification de réception ; 8ᵉ : profil de sécurité 2 ; 9ᵉ : reprise de session TLS |
+| `AT#MQTTCONNECT=5,<socket>,<broker>,8884,<compte>,<mot de passe>` | port 8884 |
+
+```bash
+python cycle_st87m01.py --port COM4 --broker <adresse IP> --utilisateur <compte> --demander-mdp --cycles 3 --tls --port-mqtt 8884 --profil-tls 2
+```
+
+Résultats du 27 novembre : cycle à la main en TLS (connexion 6,0 s, mesure 2,1 s, commandes 1,2 s, confirmation 1,1 s) ; **3 cycles automatiques sur 3 réussis, 15,2 s en moyenne** (contre 12,8 s en clair).

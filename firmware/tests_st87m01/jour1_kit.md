@@ -68,7 +68,7 @@ Si le module ne répond plus en cours de test : il dort probablement. Un caract�
 | 4.5 | `AT+CGCONTRDP=5` | `+CGCONTRDP: 5,5,"<APN>","<adresse>","","<DNS 1>","<DNS 2>",…` : l'APN et les serveurs DNS donnés par le réseau sur le **contexte 5** (celui utilisé par défaut) | Si l'APN est vide ou faux : demander l'APN à Wireless Logic, puis `AT+CFUN=0`, configurer avec `AT+CGDCONT`, `AT#RESET=1` (sauvegarde et redémarrage) |
 | 4.6 | `AT+CGPADDR=5` | `+CGPADDR: 5,"<adresse IPv4>"[,"<adresse IPv6>"]` | Pas d'adresse : contexte de données non actif, revoir l'APN |
 | 4.7 | Attendre `+CGEV: ME PDN ACT 5` puis `#IPCFG: 5,0,1` (si ces messages n'apparaissent jamais : `AT+CGEREP=1`) ; ou lire `AT#IPCFG?` | Pile IPv4 configurée automatiquement sur le contexte 5 (IP automatique activée par défaut) | Sinon, configuration manuelle : `AT#IPCFG=5,0,<adresse lue en 4.6>` → « IP Network is Up for context 5 » |
-| 4.8 | `AT#IPPING=5,8.8.8.8,30,10,3` (3 pings, 30 s d'attente) | `#IPPING: envoyés,reçus,perdus,min,max,moy` avec **reçus > 0** ; `999999` = pas de réponse | Premier test d'Internet, très léger en données. Pas de réponse : pas d'accès Internet (APN, offre de la SIM) |
+| 4.8 | `AT#IPPING=5,8.8.8.8,120,10,3` (3 pings, 120 s d'attente : avec 30 s, une partie des pings échouait, essais du 20 nov) | `#IPPING: envoyés,reçus,perdus,min,max,moy` avec **reçus > 0** ; `999999` = pas de réponse | Premier test d'Internet, très léger en données. Pas de réponse : pas d'accès Internet (APN, offre de la SIM) |
 
 **Ce qu'on doit voir au démarrage** (exemple de la note TCP_UDP_IP, sans aucune commande) :
 
@@ -116,14 +116,14 @@ D'après le manuel et la note MQTT : une fois la connexion de données établie,
 | Étape | Commande | Attendu | Remarques |
 |---|---|---|---|
 | 6.1 | `AT#DNS=5,0,<nom du broker>` | `#DNS: <adresse IP>,<durée de validité>` | Seulement si le broker a un nom. Le serveur DNS se règle avec `AT#IPPARAMS` (réseau ou mémoire) |
-| 6.2 | `AT#MQTTCFG?` puis `AT#MQTTCFG=nilm_01,20,20,10,0` | `OK` | Nom du client (25 caractères au plus), délai de connexion 20 s, délai de protocole 20 s, 10 essais. Dernier champ : **keep-alive**, mis à 0 pour les tests. Attention : le manuel annonce 120 s par défaut, la note MQTT 10 s ; le lire avec `AT#MQTTCFG?` et le fixer soi-même |
-| 6.3 | `AT#SOCKETCREATE=5,0,TCP,,10,10` | `#SOCKETCREATE: 0` (numéro de la socket) | Contexte 5, IPv4, TCP, port local libre, délais d'envoi et de réception de 10 s (exemple de ST). Si les délais expirent, monter à 30 s : la note demande des délais « assez grands » pour le réseau. Au plus 3 sockets (1 TCP et 2 UDP) |
+| 6.2 | `AT#MQTTCFG?` puis `AT#MQTTCFG=nilm_01,60,60,3,120` | `OK` | Nom du client (25 caractères au plus), délais de 60 s, 3 essais. Dernier champ : **keep-alive** (120 s ; 0 le désactive et la connexion meurt en silence, essais du 25 nov). À renvoyer à chaque démarrage |
+| 6.3 | `AT#SOCKETCREATE=5,0,TCP,,60,60` | `#SOCKETCREATE: 0` (numéro de la socket) | Contexte 5, IPv4, TCP, port local libre, délais d'envoi et de réception de 10 s (exemple de ST). Si les délais expirent, monter à 30 s : la note demande des délais « assez grands » pour le réseau. Au plus 3 sockets (1 TCP et 2 UDP) |
 | 6.4 | `AT#MQTTCONNECT=5,0,<adresse IP>,1883,<utilisateur>,<mot de passe>` | `OK` | Port 1883 en clair pour ce premier test seulement. Utilisateur : 25 caractères au plus ; mot de passe : 50 au plus. Vérifier avec `AT#MQTTCONNECT?` → `#MQTTCONNECT: 1,…` |
-| 6.5 | `AT#MQTTPUB=nilm/maison/etat,1615;21;48;0;0;310,3,1,0` | `OK` | Topic et message : **50 caractères au plus chacun**. 3 essais, QoS 1, sans *retain*. Si le `;` du message pose problème, réessayer avec le message entre guillemets. Mathieu vérifie : `mosquitto_sub -t 'maison/nilm_01/#' -v` |
-| 6.6 | `AT#MQTTSUB=nilm/maison/cmd/+,1` | `OK` | Mathieu publie un planning de test |
-| 6.7 | (attendre) | `#MQTTRECV: nilm/maison/cmd/plan, 2101;R;000003;0002AAAAA005;22;22` | Message reçu du broker |
+| 6.5 | `AT#MQTTPUB=nilm/maison/etat,"1615;21;48;0;0;310",3,1,0` | `OK` | Topic et message : **50 caractères au plus chacun**. Paramètres : topic, message, 3 essais, QoS 1, sans *retain*. **Message entre guillemets** : sans eux, le `;` coupe la commande et le broker reçoit « 1615 » en QoS 0 (essais du 20 nov). Mathieu vérifie : `mosquitto_sub -t 'nilm/maison/#' -v` |
+| 6.6 | `AT#MQTTSUB=nilm/maison/cmd/plan,1,nilm/maison/cmd/chauffe_eau,1` | `OK` | **Topics exacts** : avec `nilm/maison/cmd/+`, le module acquitte les messages sans afficher `#MQTTRECV` (essais du 25 et du 26 nov) |
+| 6.7 | (attendre) | `#MQTTRECV: nilm/maison/cmd/plan,2101;R;000003;0002AAAAA005;22;22` | Message retenu livré dès l'abonnement. Un message envoyé pendant que le module dort (PSM) n'arrive qu'à sa prochaine émission |
 | 6.8 | `AT#MQTTDISC` | `OK` | Déconnexion propre |
-| 6.9 | `AT#SOCKETCLOSE=5,0` | `OK` | Ferme la socket (et le lien TCP s'il est encore ouvert) |
+| 6.9 | `AT#SOCKETCLOSE=5,0` | `+CME ERROR: 2104` après `AT#MQTTDISC` | Inutile après une déconnexion réussie (elle ferme déjà la socket) ; à garder si la connexion a échoué |
 
 **Ensuite : TLS sur le port 8883** (planning : S5). D'après la note d'application ST87MXX_TLS :
 
