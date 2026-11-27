@@ -331,7 +331,13 @@ def main(argv=None):
         transport = FauxST87M01(horloge=h)
         dormir, horloge = h.avancer, h.maintenant
     else:
-        transport = TransportSerie(o.port)
+        try:
+            transport = TransportSerie(o.port)
+        except Exception as e:  # port absent ou déjà ouvert (GUI ST)
+            print(f"Impossible d'ouvrir {o.port} : {e}\n"
+                  "Vérifier que le kit est branché et que la GUI ST est déconnectée et fermée.")
+            journal.fermer()
+            return 3
     journal.ecrire("--", f"séance {horodatage}, {'faux module' if o.simulateur else o.port}, {o.cycles} cycle(s)")
     try:
         detail, cycles = seance(Modem(transport, journal, horloge), o, dormir, horloge)
