@@ -28,8 +28,10 @@ Règles tirées des essais (20, 25 et 26 nov 2026) :
 - une commande à la fois, en attendant sa réponse ;
 - message publié entre guillemets (le « ; » sépare deux commandes AT) ;
 - abonnements aux topics exacts : avec un joker (+), le module acquitte sans afficher #MQTTRECV ;
-- en cas d'erreur de la pile MQTT ou TCP (2215, 2218, 2220, 2152, #TCPSENDFAIL), redémarrer
-  avec AT#RESET=1 (jamais AT#RESET=0, qui ne sauvegarde pas la configuration) ;
+- après un cycle en échec : un ping vérifie le réseau ; sans réponse, relancer la connexion de données
+  (AT+CFUN=0, AT+CFUN=1, attendre ~30 s après #IPCFG: 5,0,1) ; si le réseau répond, la pile MQTT est
+  sans doute bloquée (2215, 2218, 2220) : AT#RESET=1 (jamais AT#RESET=0), puis connexion de données ;
+- le ping n'est envoyé qu'après un échec, pour ne pas consommer de données à chaque cycle ;
 - vérifier l'APN au démarrage (il s'est effacé une fois, le 25 nov).
 """
 
@@ -101,12 +103,44 @@ def demarrer(modem, opts, forcer_radio=False):
     return True, "connexion de données ouverte (AT+CFUN=0 puis AT+CFUN=1)"
 
 
-def remettre_a_zero(modem, opts, dormir):
-    """AT#RESET=1 (sauvegarde la configuration), puis nouvelle connexion de données."""
+def reseau_ok(modem, opts):
+    """Un ping (délai de 120 s) : True si une réponse revient. Utilisé seulement après un échec."""
+    rep = modem.commande(f"AT#IPPING={CONTEXTE},{opts.cible_ping},120,10,1", delai=135)
+    c = champs(rep.ligne("#IPPING:"))
+    return len(c) >= 2 and c[1].isdigit() and int(c[1]) > 0
+
+
+def retablir_reseau(modem, opts, dormir):
+    """Ce qui a rétabli l'accès Internet sur le kit (27 nov) : AT+CFUN=0, AT+CFUN=1, attendre
+    #IPCFG: 5,0,1 puis encore ~30 s, et vérifier par un ping. Une relance n'a pas toujours suffi."""
+    for _ in range(opts.relances_reseau):
+        if relancer_radio(modem, opts):
+            dormir(opts.attente_reseau)
+            if reseau_ok(modem, opts):
+                return True
+    return False
+
+
+def reprendre(modem, opts, dormir):
+    """Après un cycle en échec. Renvoie (ok, détail).
+
+    1. Le réseau répond-il (ping) ? Sinon, relancer la connexion de données.
+    2. Si le réseau répond, la pile MQTT ou TCP est sans doute bloquée : AT#RESET=1 (sauvegarde la
+       configuration ; jamais AT#RESET=0), puis connexion de données et vérification par un ping.
+    """
+    if not reseau_ok(modem, opts):
+        if retablir_reseau(modem, opts, dormir):
+            return True, "réseau coupé, rétabli par AT+CFUN=0 puis AT+CFUN=1"
     modem.commande("AT#RESET=1", delai=10)
     dormir(opts.attente_reset)
     modem.urc.clear()
-    return demarrer(modem, opts, forcer_radio=True)
+    ok, detail = demarrer(modem, opts, forcer_radio=True)
+    if not ok:
+        return False, detail
+    dormir(opts.attente_reseau)
+    if reseau_ok(modem, opts) or retablir_reseau(modem, opts, dormir):
+        return True, "module remis à zéro (AT#RESET=1), réseau vérifié par un ping"
+    return False, "réseau injoignable même après remise à zéro et relance de la connexion"
 
 
 # ---------------------------------------------------------------- cycle
@@ -216,17 +250,22 @@ def seance(modem, opts, dormir=time.sleep, horloge=time.monotonic):
     for n in range(1, opts.cycles + 1):
         debut = horloge()
         cy = un_cycle(modem, opts, n, horloge)
-        if not cy.ok and opts.reprise:
-            modem.j.ecrire("--", f"cycle {n} en échec ({cy.etape_echec} : {cy.erreur}) : AT#RESET=1 et nouvel essai")
-            ok, detail = remettre_a_zero(modem, opts, dormir)
-            if ok:
-                cy = un_cycle(modem, opts, n, horloge)
-                cy.reprise = True
+        essais, abandon = 0, False
+        while not cy.ok and opts.reprise and essais < opts.reprises:
+            essais += 1
+            modem.j.ecrire("--", f"cycle {n} en échec ({cy.etape_echec} : {cy.erreur}) : vérification du réseau")
+            ok, quoi = reprendre(modem, opts, dormir)
+            modem.j.ecrire("--", f"reprise {essais} : {quoi}")
+            if not ok:
+                abandon = True
+                break
+            cy = un_cycle(modem, opts, n, horloge)
+            cy.reprise = True
         cycles.append(cy)
         modem.j.ecrire("--", f"cycle {n} : {'OK' if cy.ok else 'ÉCHEC'} en {cy.total} s, "
                              f"reçu {cy.recus or '-'}, confirmé {cy.confirmes or '-'}")
-        if not cy.ok and not opts.reprise:
-            break
+        if not cy.ok and (not opts.reprise or abandon):
+            break  # sans réseau, inutile d'enchaîner les cycles suivants
         if n < opts.cycles and opts.intervalle > 0:
             dormir(max(opts.intervalle - (horloge() - debut), 0))
     if opts.fermer_session:
@@ -300,6 +339,11 @@ def options(argv=None):
                    help="ne pas envoyer AT#SLEEPMODE=0")
     p.add_argument("--attente-attache", type=float, default=180, help="attente maximale de #IPCFG: 5,0,1 (s)")
     p.add_argument("--attente-reset", type=float, default=15, help="pause après AT#RESET=1 (s)")
+    p.add_argument("--attente-reseau", type=float, default=30,
+                   help="pause après #IPCFG: 5,0,1 avant de vérifier le réseau par un ping (s)")
+    p.add_argument("--relances-reseau", type=int, default=2, help="relances AT+CFUN au plus pour rétablir le réseau")
+    p.add_argument("--reprises", type=int, default=2, help="reprises au plus d'un cycle en échec")
+    p.add_argument("--cible-ping", default="8.8.8.8", help="adresse pinguée pour vérifier l'accès Internet")
     p.add_argument("--journaux", default=str(DOSSIER_JOURNAUX))
     o = p.parse_args(argv)
     if o.port and not o.broker:

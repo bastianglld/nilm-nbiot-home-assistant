@@ -10,7 +10,9 @@ Comportements reproduits d'après les essais sur le kit (journal des 20, 25 et 2
 - après `AT#MQTTSUB`, le broker livre les messages retenus (`#MQTTRECV: <topic>,<message>`),
   mais **seulement pour les abonnements exacts** : un message reçu par un joker (`+`) est
   acquitté sans être affiché ;
-- une pile MQTT bloquée répond 2215 à la publication et 2220 à la connexion, jusqu'à `AT#RESET=1`.
+- une pile MQTT bloquée répond 2215 à la publication et 2220 à la connexion, jusqu'à `AT#RESET=1` ;
+- accès Internet perdu malgré l'adresse IP (27 nov) : connexion en 2152, ping sans réponse, jusqu'à
+  `AT+CFUN=0` puis `AT+CFUN=1` (`AT#RESET=1` seul ne le rétablit pas).
 
 Le temps est simulé : attendre l'attache au réseau ne prend pas de vraies secondes.
 """
@@ -33,7 +35,7 @@ class FauxST87M01:
     def __init__(self, horloge=None, sim=True, refus=False, couverture=True, attache_apres=40.0,
                  rsrp=50, rsrq=20, broker_ok=True, muet=False, echo=False, veille=1, ping_ok=True, endormi=0,
                  plan="2101;R;000003;0002AAAAA005;22;22", retenus=None, apn="eapn1.net",
-                 bloque_apres=None):
+                 bloque_apres=None, coupure_a=None, coupures=1):
         self.h = horloge or HorlogeSimulee()
         self.sim, self.refus, self.couverture = sim, refus, couverture
         self.attache_apres, self.rsrp, self.rsrq = attache_apres, rsrp, rsrq
@@ -55,6 +57,10 @@ class FauxST87M01:
         self.publies = []  # (topic, message) acceptés
         self.bloque_apres = bloque_apres  # nombre de publications réussies avant blocage de la pile MQTT
         self.bloque = False
+        self.internet = True
+        self.connexions = 0
+        self.coupure_a = coupure_a  # numéro de la connexion MQTT à laquelle l'accès Internet se perd
+        self.coupures = coupures    # nombre de relances AT+CFUN nécessaires pour le rétablir
 
     # -- interface transport
     def ecrire(self, texte):
@@ -126,6 +132,9 @@ class FauxST87M01:
         if c == "AT+CFUN?":
             return ["+CFUN: 1", "OK"]
         if c == "AT+CFUN=1":
+            if not self.internet:
+                self.coupures -= 1
+                self.internet = self.coupures <= 0
             self.radio = True
             self.debut_radio = self.h.maintenant()
             self.ipcfg_attendu = True
@@ -162,7 +171,11 @@ class FauxST87M01:
             if not self._attache():
                 return ["+CME ERROR: 3"]
             # format du manuel AT : envoyés, reçus, perdus, min, max, moyenne (999999 = pas de réponse)
-            return ["#IPPING: 3,3,0,1518,2210,1790", "OK"] if self.ping_ok else ["#IPPING: 3,0,3,999999,0,0", "OK"]
+            n = int(cmd.split(",")[-1]) if cmd.count(",") >= 4 else 4
+            if self.ping_ok and self.internet:
+                return [f"#IPPING: {n},{n},0,1518,2210,1790", "OK"]
+            self.h.avancer(120 * n)  # chaque ping attend son délai avant d'abandonner
+            return [f"#IPPING: {n},0,{n},999999,0,0", "OK"]
         if c == "AT+CESQ":
             if not self._attache():
                 return ["+CESQ: 99,99,255,255,255,255", "OK"]
@@ -176,6 +189,12 @@ class FauxST87M01:
         if c.startswith("AT#MQTTCONNECT="):
             if self.bloque or self.connecte:
                 return ["+CME ERROR: 2220"]
+            self.connexions += 1
+            if self.coupure_a is not None and self.connexions >= self.coupure_a:
+                self.internet, self.coupure_a = False, None
+            if not self.internet:
+                self.h.avancer(60)  # délai de la socket écoulé sans réponse
+                return ["+CME ERROR: 2152"]
             if self._attache() and self.broker_ok:
                 self.connecte = True
                 return ok

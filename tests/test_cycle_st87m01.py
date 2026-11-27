@@ -88,6 +88,30 @@ class TestCycle(unittest.TestCase):
         self.assertIn("AT#RESET=1", module.recues)
         self.assertNotIn("AT#RESET=0", module.recues)
 
+    def test_reseau_coupe_retabli_par_cfun(self):
+        # 27 nov : 2152 puis ping sans réponse ; AT+CFUN=0 puis 1 rétablit l'accès Internet
+        _, cycles, module, _ = lancer(["--cycles", "3"], attache=True, coupure_a=2)
+        self.assertEqual(sum(c.ok for c in cycles), 3)
+        self.assertEqual(cycles[1].reprise, True)
+        self.assertNotIn("AT#RESET=1", module.recues)  # réseau en cause : pas de remise à zéro
+        self.assertIn("AT#IPPING=5,8.8.8.8,120,10,1", module.recues)
+        self.assertEqual(module.recues.count("AT+CFUN=1"), 1)
+
+    def test_reseau_deux_relances(self):
+        # une seule relance n'a pas toujours suffi (27 nov, 14 h 29)
+        _, cycles, module, _ = lancer(["--cycles", "2"], attache=True, coupure_a=2, coupures=2)
+        self.assertTrue(cycles[1].ok)
+        self.assertEqual(module.recues.count("AT+CFUN=1"), 2)
+
+    def test_reseau_jamais_retabli(self):
+        _, cycles, module, _ = lancer(["--cycles", "5"], attache=True, coupure_a=1, coupures=99)
+        self.assertEqual(len(cycles), 1)  # la séance s'arrête au lieu d'enchaîner les échecs
+        self.assertFalse(cycles[0].ok)
+
+    def test_pas_de_ping_sans_echec(self):
+        _, cycles, module, _ = lancer(["--cycles", "3"], attache=True)
+        self.assertFalse(any(c.startswith("AT#IPPING") for c in module.recues))
+
     def test_pile_bloquee_sans_reprise(self):
         detail, cycles, module, _ = lancer(["--cycles", "3", "--sans-reprise"], attache=True, bloque_apres=2)
         self.assertEqual(len(cycles), 2)
