@@ -102,6 +102,12 @@ class TestCycle(unittest.TestCase):
         self.assertEqual(cycles[0].etape_echec, "connexion")
         self.assertIn("AT#SOCKETCLOSE=5,0", module.recues)
 
+    def test_tls(self):
+        _, cycles, module, _ = lancer(["--tls"], attache=True)
+        self.assertTrue(cycles[0].ok)
+        self.assertIn("AT#SOCKETCREATE=5,0,TCP,,60,60,0,0,1", module.recues)
+        self.assertTrue(any(c.startswith("AT#MQTTCONNECT=5,0,10.0.0.1,8883") for c in module.recues))
+
     def test_sans_confirmation(self):
         _, cycles, module, _ = lancer(["--sans-confirmation"], attache=True)
         self.assertTrue(cycles[0].ok)

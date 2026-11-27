@@ -170,7 +170,9 @@ def un_cycle(modem, opts, numero, horloge):
 
     if not etape("configuration", f"AT#MQTTCFG={opts.client},60,60,3,{opts.keepalive}", 5):
         return cy
-    rep = etape("socket", f"AT#SOCKETCREATE={CONTEXTE},0,TCP,,60,60", 10)
+    # TLS : 7e paramètre 0 (pas de #IPRECV), 8e = profil de sécurité, 9e = 1 (reprise de session)
+    tls = f",0,{opts.profil_tls},1" if opts.tls else ""
+    rep = etape("socket", f"AT#SOCKETCREATE={CONTEXTE},0,TCP,,60,60{tls}", 10)
     if not rep:
         return cy
     sid = champs(rep.ligne("#SOCKETCREATE:"))[0]
@@ -267,7 +269,10 @@ def options(argv=None):
     src.add_argument("--port", help="port série du CP2105 (Standard COM Port), par exemple COM4")
     src.add_argument("--simulateur", action="store_true", help="utiliser le faux module (sans kit)")
     p.add_argument("--broker", help="adresse IP du broker (obligatoire avec --port ; pas de nom : le module ne résout pas)")
-    p.add_argument("--port-mqtt", type=int, default=1883)
+    p.add_argument("--port-mqtt", type=int, help="1883 par défaut, 8883 avec --tls")
+    p.add_argument("--tls", action="store_true",
+                   help="connexion chiffrée : socket liée au profil de sécurité (certificat racine chargé avant)")
+    p.add_argument("--profil-tls", type=int, default=0, help="profil de sécurité du module (AT#TLSCERTADD)")
     p.add_argument("--client", default="nilm_01")
     p.add_argument("--utilisateur", default="")
     p.add_argument("--demander-mdp", action="store_true", help="demander le mot de passe MQTT au clavier")
@@ -299,6 +304,7 @@ def options(argv=None):
     o = p.parse_args(argv)
     if o.port and not o.broker:
         p.error("--broker est obligatoire avec --port")
+    o.port_mqtt = o.port_mqtt or (8883 if o.tls else 1883)
     o.broker = o.broker or "10.0.0.1"  # adresse fictive pour le faux module
     o.mdp = os.environ.get("ST87M01_MQTT_MDP", "")
     if o.demander_mdp:
