@@ -88,19 +88,25 @@ python cycle_st87m01.py --port COM4 --broker <adresse IP> --utilisateur <compte>
 
 Produit : un journal `journaux/cycles_<date>.log` et une ligne par cycle dans `journaux/releve_cycles.csv` (durée de chaque étape, commandes reçues, confirmations). Durées mesurées à la main le 26 novembre : connexion 1,9 s, mesure 4,3 s, commandes 3,3 s, confirmation 2,7 s, déconnexion 2,1 s, soit environ 14 s de module par cycle.
 
-## Passer en TLS (port 8883)
+## Passer en TLS (port 8884, validé le 27 novembre)
 
-Le module vérifie le certificat du broker avec un certificat racine chargé une fois pour toutes dans son stockage sécurisé (note d'application ST87MXX_TLS). Seuls les certificats **ECDSA** sont acceptés, au format **DER**. Le broker utilise la chaîne Let's Encrypt ECDSA (vérifiée le 4 novembre : broker → YE2 → Root YE → ISRG Root X2) : charger **ISRG Root YE** ([DER](https://letsencrypt.org/certs/gen-y/root-ye.der)), ou à défaut **ISRG Root X2** ([DER](https://letsencrypt.org/certs/isrg-root-x2.der)) ; jamais ISRG Root X1 (RSA).
+Le module vérifie le certificat du broker avec un certificat racine chargé une fois pour toutes dans son stockage sécurisé (note d'application ST87MXX_TLS). Seuls les certificats **ECDSA** sont acceptés, au format **DER**.
+
+`AT#MQTTCONNECT` n'accepte qu'une **adresse IP** : le certificat du broker doit donc contenir cette adresse. Avec le certificat Let's Encrypt du port 8883 (établi pour le nom DNS du serveur), le module refuse la connexion (`+CME ERROR: 3113`, « X509 : certificate verification failed »), que la racine chargée soit ISRG Root YE ou ISRG Root X2 (essais du 27 novembre). Le broker offre donc au module un **port 8884**, avec un certificat signé par l'autorité ECDSA de l'équipe (« NILM M1 CA ») qui contient l'adresse IP. Home Assistant garde Let's Encrypt sur le 8883.
 
 ```bash
-python certificat_at.py root-ye.der --sortie commande_certificat.txt   # écrit AT#TLSCERTADD=0,1,<longueur>,<hexadécimal>
+python certificat_at.py ca.crt --profil 2 --sortie commande_ca.txt   # écrit AT#TLSCERTADD=2,1,<longueur>,<hexadécimal>
 ```
 
-Dans la console : coller la commande, attendre `OK`, puis `AT#RESET=1` pour l'enregistrer. Ensuite, à chaque cycle, seules deux commandes changent :
+Dans la console : coller la commande, attendre `OK`, vérifier avec `AT#TLSCERTLIST=2`, puis `AT#RESET=1`, puis **`AT+CFUN=0` et `AT+CFUN=1`** (après une remise à zéro, le module peut garder une adresse IP sans accès Internet). Ensuite, à chaque cycle, seules deux commandes changent :
 
 | Commande | Changement |
 |---|---|
-| `AT#SOCKETCREATE=5,0,TCP,,60,60,0,0,1` | 7ᵉ paramètre : pas de notification de réception ; 8ᵉ : profil de sécurité 0 ; 9ᵉ : reprise de session TLS (moins de données à chaque cycle) |
-| `AT#MQTTCONNECT=5,<socket>,<broker>,8883,<compte>,<mot de passe>` | port 8883 |
+| `AT#SOCKETCREATE=5,0,TCP,,60,60,0,2,1` | 7ᵉ paramètre : pas de notification de réception ; 8ᵉ : profil de sécurité 2 ; 9ᵉ : reprise de session TLS |
+| `AT#MQTTCONNECT=5,<socket>,<broker>,8884,<compte>,<mot de passe>` | port 8884 |
 
-À vérifier au premier essai : le certificat du broker porte son nom DNS, alors que le module se connecte par adresse IP.
+```bash
+python cycle_st87m01.py --port COM4 --broker <adresse IP> --utilisateur <compte> --demander-mdp --cycles 3 --tls --port-mqtt 8884 --profil-tls 2
+```
+
+Résultats du 27 novembre : cycle à la main en TLS (connexion 6,0 s, mesure 2,1 s, commandes 1,2 s, confirmation 1,1 s) ; **3 cycles automatiques sur 3 réussis, 15,2 s en moyenne** (contre 12,8 s en clair).
